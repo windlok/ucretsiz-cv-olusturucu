@@ -1,0 +1,1965 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Oluşturucu (Tek Dosya) – Vue 3 + Tailwind</title>
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Vue 3 (CDN) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+  <!-- html2pdf.js (PDF direkt indirme için) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Poppins:wght@400;500;600;700&family=Lato:wght@400;700&family=Open+Sans:wght@400;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* A4 boyutu ve yazdırma ayarları */
+    :root{
+      --a4-w: 210mm;
+      --a4-h: 297mm;
+      
+      /* Tema renkleri */
+      --theme-primary: 15 23 42; /* slate-900 */
+      --theme-secondary: 51 65 85; /* slate-700 */
+      --theme-accent: 100 116 139; /* slate-500 */
+    }
+
+    /* Tema sınıfları */
+    .theme-blue { --theme-primary: 29 78 216; --theme-secondary: 37 99 235; --theme-accent: 59 130 246; }
+    .theme-green { --theme-primary: 21 128 61; --theme-secondary: 22 163 74; --theme-accent: 34 197 94; }
+    .theme-purple { --theme-primary: 126 34 206; --theme-secondary: 147 51 234; --theme-accent: 168 85 247; }
+    .theme-red { --theme-primary: 185 28 28; --theme-secondary: 220 38 38; --theme-accent: 239 68 68; }
+    .theme-orange { --theme-primary: 194 65 12; --theme-secondary: 234 88 12; --theme-accent: 249 115 22; }
+    .theme-pink { --theme-primary: 190 24 93; --theme-secondary: 219 39 119; --theme-accent: 236 72 153; }
+    .theme-teal { --theme-primary: 13 148 136; --theme-secondary: 20 184 166; --theme-accent: 45 212 191; }
+    .theme-indigo { --theme-primary: 67 56 202; --theme-secondary: 79 70 229; --theme-accent: 99 102 241; }
+    .theme-minimal { --theme-primary: 0 0 0; --theme-secondary: 64 64 64; --theme-accent: 115 115 115; }
+
+    /* Font sınıfları */
+    .font-inter { font-family: 'Inter', sans-serif; }
+    .font-roboto { font-family: 'Roboto', sans-serif; }
+    .font-poppins { font-family: 'Poppins', sans-serif; }
+    .font-lato { font-family: 'Lato', sans-serif; }
+    .font-opensans { font-family: 'Open Sans', sans-serif; }
+    .font-montserrat { font-family: 'Montserrat', sans-serif; }
+
+    /* Tema renklerini uygula */
+    .theme-color-primary { color: rgb(var(--theme-primary)); }
+    .theme-bg-primary { background-color: rgb(var(--theme-primary)); }
+    .theme-border-primary { border-color: rgb(var(--theme-primary)); }
+
+    /* Sağ paneldeki A4 kartın ekranda düzgün görünmesi için */
+    .a4 {
+      width: var(--a4-w);
+      min-height: var(--a4-h);
+    }
+
+    /* Ekranda A4'ü "kağıt" gibi göstermek için gölge */
+    .paper-shadow {
+      box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    }
+
+    /* Print: sadece sağ paneldeki A4 yazdırılsın */
+    @media print {
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+
+      body { 
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: #fff !important;
+      }
+
+      /* Sol panel ve ekrandaki arayüz elementleri gizlensin */
+      .no-print { display: none !important; }
+
+      /* "Eksik" yardımcı metinler PDF'de görünmesin */
+      .placeholder { display: none !important; }
+
+      /* Yazdırmada A4 container tek başına kalsın */
+      .print-area {
+        display: block !important;
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .a4 {
+        width: auto !important;
+        min-height: auto !important;
+        box-shadow: none !important;
+      }
+    }
+
+    /* Küçük ekranlarda A4 taşmasın (sadece ekranda) */
+    @media (max-width: 1024px) {
+      .a4 {
+        width: 100%;
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-100 text-slate-900">
+  <div id="app" class="min-h-screen">
+    <!-- Top Bar -->
+    <header class="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
+      <div class="mx-auto max-w-[1400px] px-4 py-3 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-semibold">CV</div>
+          <div>
+            <div class="text-sm font-semibold leading-5">CV Oluşturucu</div>
+            <div class="text-xs text-slate-500">Vue 3 reactivity + Tailwind tasarım • ATS uyumlu sade önizleme</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <select v-model="selectedTheme" class="text-xs rounded-lg border border-slate-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-900/20" title="Tema">
+            <option value="default">🎨 Varsayılan</option>
+            <option value="blue">🔵 Mavi</option>
+            <option value="green">🟢 Yeşil</option>
+            <option value="purple">🟣 Mor</option>
+            <option value="red">🔴 Kırmızı</option>
+            <option value="orange">🟠 Turuncu</option>
+            <option value="pink">🩷 Pembe</option>
+            <option value="teal">🔷 Turkuaz</option>
+            <option value="indigo">🟦 İndigo</option>
+            <option value="minimal">⚪ Minimal</option>
+          </select>
+          <select v-model="selectedFont" class="text-xs rounded-lg border border-slate-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-900/20" title="Font">
+            <option value="inter">📝 Inter</option>
+            <option value="roboto">📝 Roboto</option>
+            <option value="poppins">📝 Poppins</option>
+            <option value="lato">📝 Lato</option>
+            <option value="opensans">📝 Open Sans</option>
+            <option value="montserrat">📝 Montserrat</option>
+          </select>
+          <label class="flex items-center gap-2 select-none" title="ATS Modu: Daha sade, tek kolon ve metin odaklı çıktı">
+            <input v-model="atsMode" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+            <span class="text-sm font-medium text-slate-700">ATS Modu</span>
+          </label>
+          <div class="relative">
+            <button
+              @click="showProfilesMenu = !showProfilesMenu"
+              class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              title="CV Profilleri">
+              📋 Profiller
+            </button>
+            <div v-if="showProfilesMenu" class="absolute right-0 mt-2 w-64 rounded-lg border border-slate-200 bg-white shadow-lg z-30">
+              <div class="p-2 space-y-1">
+                <!-- Profil Kaydet -->
+                <div class="px-3 py-2">
+                  <input 
+                    v-model="newProfileName" 
+                    @keyup.enter="saveProfile"
+                    type="text" 
+                    placeholder="Profil adı gir ve Enter..." 
+                    class="w-full text-xs px-2 py-1.5 border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-slate-900/20" 
+                  />
+                </div>
+                <button @click="saveProfile" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-50 font-medium text-slate-900">💾 Mevcut CV'yi Kaydet</button>
+                
+                <!-- Kayıtlı Profiller -->
+                <div v-if="savedProfiles.length > 0" class="border-t border-slate-200 my-1"></div>
+                <div v-if="savedProfiles.length > 0" class="max-h-48 overflow-y-auto">
+                  <div v-for="profile in savedProfiles" :key="profile.id" class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded group">
+                    <button @click="loadProfile(profile.id)" class="flex-1 text-left text-sm truncate">
+                      📄 {{ profile.name }}
+                    </button>
+                    <button @click="deleteProfile(profile.id)" class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 text-xs px-1">
+                      ×
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="border-t border-slate-200 my-1"></div>
+                <label class="w-full block px-3 py-2 text-sm rounded hover:bg-slate-50 cursor-pointer">
+                  📂 JSON Yükle
+                  <input type="file" accept=".json" @change="importJSON" class="hidden" />
+                </label>
+                <button @click="exportJSON" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-50">💾 JSON İndir</button>
+                <div class="border-t border-slate-200 my-1"></div>
+                <button @click="deleteCV" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-red-50 text-red-600">🗑️ CV'yi Sil</button>
+              </div>
+            </div>
+          </div>
+          <button
+            @click="resetAll"
+            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Sıfırla
+          </button>
+          <button
+            @click="printPdf"
+            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            title="Yazdırma penceresini açar">
+            Yazdır (PDF)
+          </button>
+          <button
+            @click="downloadPdf"
+            class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            title="Direkt PDF dosyası indirir">
+            PDF İndir
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Split Screen -->
+    <main class="mx-auto max-w-[1400px] px-4 py-6">
+      <div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        <!-- LEFT PANEL (40%) -->
+        <section class="no-print lg:col-span-4">
+          <div class="rounded-2xl border border-slate-200 bg-white p-5">
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-semibold">Bilgiler</h2>
+              <span class="text-xs text-slate-500">Anlık önizleme aktif</span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-4">
+              <!-- Photo -->
+              <div>
+                <label class="text-xs font-medium text-slate-600">Profil Fotoğrafı (opsiyonel)</label>
+                <div class="mt-2 flex items-start gap-3">
+                  <div v-if="cv.photo" class="relative h-20 w-20 shrink-0 rounded-lg overflow-hidden border border-slate-200">
+                    <img :src="cv.photo" alt="Profil" class="h-full w-full object-cover" />
+                    <button
+                      @click="cv.photo = ''"
+                      class="absolute top-1 right-1 rounded-full bg-red-500 text-white p-1 text-xs hover:bg-red-600"
+                      title="Resmi kaldır">×</button>
+                  </div>
+                  <div v-else class="h-20 w-20 shrink-0 rounded-lg bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs">Resim</div>
+                  <div class="flex-1">
+                    <input
+                      @change="handlePhotoUpload"
+                      type="file"
+                      accept="image/*"
+                      class="block w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer" />
+                    <div class="mt-1 text-xs text-slate-500">JPG, PNG, WebP (maks 2MB). ATS için opsiyonel.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Basic -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs font-medium text-slate-600">Ad</label>
+                  <input v-model.trim="cv.firstName" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Ayşe" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-slate-600">Soyad</label>
+                  <input v-model.trim="cv.lastName" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Yılmaz" />
+                </div>
+              </div>
+
+              <div>
+                <label class="text-xs font-medium text-slate-600">Ünvan</label>
+                <input v-model.trim="cv.title" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Frontend Developer" />
+              </div>
+
+              <div>
+                <label class="text-xs font-medium text-slate-600">Özet</label>
+                <textarea v-model.trim="cv.summary" rows="4" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Kısa, ATS uyumlu özet (2-4 cümle)."></textarea>
+                <div class="mt-1 text-xs text-slate-500">
+                  İpucu: Teknolojiler + etki + ölçüm (örn: %20 hızlandı).
+                </div>
+              </div>
+
+              <!-- Contact -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">İletişim</h3>
+                </div>
+                <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-medium text-slate-600">E-posta</label>
+                    <input v-model.trim="cv.contact.email" type="email" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="ayse@mail.com" />
+                  </div>
+                  <div>
+                    <label class="text-xs font-medium text-slate-600">Telefon</label>
+                    <input v-model.trim="cv.contact.phone" type="tel" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="+90 5xx xxx xx xx" />
+                  </div>
+                  <div>
+                    <label class="text-xs font-medium text-slate-600">Konum</label>
+                    <input v-model.trim="cv.contact.location" type="text" list="locations" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="İstanbul, TR" />
+                  </div>
+                  <div>
+                    <label class="text-xs font-medium text-slate-600">LinkedIn</label>
+                    <input v-model.trim="cv.contact.linkedin" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="linkedin.com/in/..." />
+                  </div>
+                  <div>
+                    <label class="text-xs font-medium text-slate-600">GitHub (opsiyonel)</label>
+                    <input v-model.trim="cv.contact.github" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="github.com/kullanici" />
+                  </div>
+                  <div>
+                    <label class="text-xs font-medium text-slate-600">Twitter (opsiyonel)</label>
+                    <input v-model.trim="cv.contact.twitter" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="twitter.com/kullanici" />
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="text-xs font-medium text-slate-600">Website / Portfolyo</label>
+                    <input v-model.trim="cv.contact.website" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="https://..." />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Experience -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Deneyimler</h3>
+                  <button
+                    @click="addExperience"
+                    class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    + Ekle
+                  </button>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <div v-for="(exp, idx) in cv.experiences" :key="exp.id" class="rounded-xl border border-slate-200 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="text-xs font-semibold text-slate-600">Deneyim #{{ idx + 1 }}</div>
+                      <button
+                        @click="removeExperience(exp.id)"
+                        class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                        Çıkar
+                      </button>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Şirket</label>
+                        <input v-model.trim="exp.company" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: ABC Teknoloji" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Pozisyon</label>
+                        <input v-model.trim="exp.role" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Frontend Developer" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Başlangıç</label>
+                        <input v-model.trim="exp.start" type="month" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Bitiş</label>
+                        <div class="flex gap-2">
+                          <input v-model.trim="exp.end" type="month" class="mt-1 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" :disabled="exp.ongoing" />
+                          <label class="mt-1 flex items-center gap-1 text-xs whitespace-nowrap">
+                            <input v-model="exp.ongoing" type="checkbox" class="rounded" /> Devam
+                          </label>
+                        </div>
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="text-xs font-medium text-slate-600">Konum (opsiyonel)</label>
+                        <input v-model.trim="exp.location" type="text" list="locations" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Remote / İstanbul" />
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="text-xs font-medium text-slate-600">Açıklama (madde madde)</label>
+                        <textarea v-model.trim="exp.description" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="- Özellik geliştirdim (X)
+- Performansı %20 artırdım
+- Test/CI süreçlerine katkı"></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.experiences.length === 0" class="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Henüz deneyim eklemedin.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Education -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Eğitim</h3>
+                  <button
+                    @click="addEducation"
+                    class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    + Ekle
+                  </button>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <div v-for="(edu, idx) in cv.education" :key="edu.id" class="rounded-xl border border-slate-200 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="text-xs font-semibold text-slate-600">Eğitim #{{ idx + 1 }}</div>
+                      <button
+                        @click="removeEducation(edu.id)"
+                        class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                        Çıkar
+                      </button>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Okul</label>
+                        <input v-model.trim="edu.school" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: İstanbul Üniversitesi" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Bölüm / Program</label>
+                        <input v-model.trim="edu.program" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Bilgisayar Mühendisliği" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Başlangıç Yılı</label>
+                        <input v-model.trim="edu.start" type="number" min="1950" max="2030" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="2019" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Bitiş Yılı</label>
+                        <div class="flex gap-2">
+                          <input v-model.trim="edu.end" type="number" min="1950" max="2030" class="mt-1 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="2023" :disabled="edu.ongoing" />
+                          <label class="mt-1 flex items-center gap-1 text-xs whitespace-nowrap">
+                            <input v-model="edu.ongoing" type="checkbox" class="rounded" /> Devam
+                          </label>
+                        </div>
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="text-xs font-medium text-slate-600">Not / Başarı / Detay (opsiyonel)</label>
+                        <textarea v-model.trim="edu.notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: GPA 3.45/4.00, Burslu, Kulüp liderliği"></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.education.length === 0" class="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Henüz eğitim eklemedin.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Optional: Skills -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Yetenekler (opsiyonel)</h3>
+                </div>
+                <div class="mt-2">
+                  <label class="text-xs font-medium text-slate-600">Yetenek ekle</label>
+                  <div class="flex gap-2 mt-1">
+                    <input
+                      v-model.trim="newSkill"
+                      @keypress.enter="addSkill"
+                      type="text"
+                      list="commonSkills"
+                      class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20"
+                      placeholder="Örn: Vue.js, JavaScript..." />
+                    <button
+                      @click="addSkill"
+                      class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                      Ekle
+                    </button>
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <span
+                      v-for="(skill, idx) in skillsList"
+                      :key="idx"
+                      class="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-sm">
+                      {{ skill }}
+                      <button
+                        @click="removeSkill(idx)"
+                        class="ml-1 text-slate-500 hover:text-rose-600 font-bold"
+                        title="Kaldır">×</button>
+                    </span>
+                    <span v-if="skillsList.length === 0" class="text-xs text-slate-400 py-1">Henüz yetenek eklemedin</span>
+                  </div>
+                  <div class="mt-1 text-xs text-slate-500">Enter tuşu veya Ekle butonu ile ekle. ATS için basit anahtar kelimeler iyi çalışır.</div>
+                </div>
+              </div>
+
+              <!-- Projects -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Projeler (opsiyonel)</h3>
+                  <button
+                    @click="addProject"
+                    class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    + Ekle
+                  </button>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <div v-for="(p, idx) in cv.projects" :key="p.id" class="rounded-xl border border-slate-200 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="text-xs font-semibold text-slate-600">Proje #{{ idx + 1 }}</div>
+                      <button
+                        @click="removeProject(p.id)"
+                        class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                        Çıkar
+                      </button>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Proje Adı</label>
+                        <input v-model.trim="p.name" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: CV Oluşturucu" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Teknolojiler</label>
+                        <input v-model.trim="p.tech" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Vue 3, Tailwind" />
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="text-xs font-medium text-slate-600">Link (opsiyonel)</label>
+                        <input v-model.trim="p.link" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="https://github.com/... / https://demo..." />
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="text-xs font-medium text-slate-600">Açıklama (madde madde)</label>
+                        <textarea v-model.trim="p.description" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="- Ne yaptın?
+- Hangi sonucu aldın?
+- Ölçüm varsa yaz (örn: %30 daha hızlı)"></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.projects.length === 0" class="placeholder rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Henüz proje eklemedin.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Certifications -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Sertifikalar (opsiyonel)</h3>
+                  <button
+                    @click="addCertification"
+                    class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    + Ekle
+                  </button>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <div v-for="(c, idx) in cv.certifications" :key="c.id" class="rounded-xl border border-slate-200 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="text-xs font-semibold text-slate-600">Sertifika #{{ idx + 1 }}</div>
+                      <button
+                        @click="removeCertification(c.id)"
+                        class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                        Çıkar
+                      </button>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Sertifika</label>
+                        <input v-model.trim="c.name" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: AZ-900" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Kurum</label>
+                        <input v-model.trim="c.issuer" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Microsoft" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Yıl</label>
+                        <input v-model.trim="c.year" type="number" min="1990" max="2030" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="2025" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Link (opsiyonel)</label>
+                        <input v-model.trim="c.link" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="https://..." />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.certifications.length === 0" class="placeholder rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Henüz sertifika eklemedin.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Languages -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Diller (opsiyonel)</h3>
+                  <button
+                    @click="addLanguage"
+                    class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    + Ekle
+                  </button>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <div v-for="(l, idx) in cv.languages" :key="l.id" class="rounded-xl border border-slate-200 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="text-xs font-semibold text-slate-600">Dil #{{ idx + 1 }}</div>
+                      <button
+                        @click="removeLanguage(l.id)"
+                        class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                        Çıkar
+                      </button>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Dil</label>
+                        <input v-model.trim="l.name" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: İngilizce" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Seviye</label>
+                        <input v-model.trim="l.level" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="B2 / C1 / Native" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.languages.length === 0" class="placeholder rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Henüz dil eklemedin.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Hobbies -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Hobiler (opsiyonel)</h3>
+                </div>
+                <div class="mt-2">
+                  <label class="text-xs font-medium text-slate-600">Virgülle ayır</label>
+                  <input v-model.trim="cv.hobbies" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Okuma, Yazılma, Yürüyüş" />
+                </div>
+              </div>
+
+              <!-- Awards -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Ödüller/Başarılar (opsiyonel)</h3>
+                  <button
+                    @click="addAward"
+                    class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    + Ekle
+                  </button>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <div v-for="(a, idx) in cv.awards" :key="a.id" class="rounded-xl border border-slate-200 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="text-xs font-semibold text-slate-600">Ödül #{{ idx + 1 }}</div>
+                      <button
+                        @click="removeAward(a.id)"
+                        class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                        Çıkar
+                      </button>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-1 gap-3">
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Ödül/Başarı</label>
+                        <input v-model.trim="a.title" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Yılın Çalışanı" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Veren Kurum</label>
+                        <input v-model.trim="a.issuer" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: ABC Teknoloji" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Yıl</label>
+                        <input v-model.trim="a.year" type="number" min="1990" max="2030" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="2024" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Açıklama (opsiyonel)</label>
+                        <textarea v-model.trim="a.description" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Neden aldınız..."></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.awards.length === 0" class="placeholder rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Henüz ödül eklemedin.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Volunteer -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Gönüllü Çalışmalar (opsiyonel)</h3>
+                  <button
+                    @click="addVolunteer"
+                    class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    + Ekle
+                  </button>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <div v-for="(v, idx) in cv.volunteer" :key="v.id" class="rounded-xl border border-slate-200 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="text-xs font-semibold text-slate-600">Gönüllü #{{ idx + 1 }}</div>
+                      <button
+                        @click="removeVolunteer(v.id)"
+                        class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                        Çıkar
+                      </button>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Organizasyon</label>
+                        <input v-model.trim="v.organization" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Kızılay" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Rol</label>
+                        <input v-model.trim="v.role" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Gönüllü" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Başlangıç</label>
+                        <input v-model.trim="v.start" type="month" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Bitiş</label>
+                        <div class="flex gap-2">
+                          <input v-model.trim="v.end" type="month" class="mt-1 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" :disabled="v.ongoing" />
+                          <label class="mt-1 flex items-center gap-1 text-xs whitespace-nowrap">
+                            <input v-model="v.ongoing" type="checkbox" class="rounded" /> Devam
+                          </label>
+                        </div>
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="text-xs font-medium text-slate-600">Açıklama</label>
+                        <textarea v-model.trim="v.description" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Ne yaptınız, nasıl katkı sağladınız..."></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.volunteer.length === 0" class="placeholder rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Henüz gönüllü çalışma eklemedin.
+                  </div>
+                </div>
+              </div>
+
+              <!-- References -->
+              <div class="mt-2">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Referanslar (opsiyonel)</h3>
+                  <button
+                    @click="addReference"
+                    class="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    + Ekle
+                  </button>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <div v-for="(r, idx) in cv.references" :key="r.id" class="rounded-xl border border-slate-200 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="text-xs font-semibold text-slate-600">Referans #{{ idx + 1 }}</div>
+                      <button
+                        @click="removeReference(r.id)"
+                        class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+                        Çıkar
+                      </button>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Ad Soyad</label>
+                        <input v-model.trim="r.name" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: Mehmet Yılmaz" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Pozisyon</label>
+                        <input v-model.trim="r.position" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: CTO" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">Şirket</label>
+                        <input v-model.trim="r.company" type="text" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Örn: ABC Teknoloji" />
+                      </div>
+                      <div>
+                        <label class="text-xs font-medium text-slate-600">E-posta</label>
+                        <input v-model.trim="r.email" type="email" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="mehmet@sirket.com" />
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="text-xs font-medium text-slate-600">Telefon (opsiyonel)</label>
+                        <input v-model.trim="r.phone" type="tel" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="+90 5xx xxx xx xx" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.references.length === 0" class="placeholder rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Henüz referans eklemedin.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section selector -->
+              <div class="mt-2 rounded-xl border border-slate-200 p-4">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Bölümler (Seçilebilir)</h3>
+                  <button
+                    @click="selectAllSections(true)"
+                    class="text-xs font-semibold text-slate-700 hover:text-slate-900">
+                    Hepsi Aç
+                  </button>
+                </div>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.summary" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Özet
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.skills" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Yetenekler
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.experience" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Deneyim
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.education" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Eğitim
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.projects" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Projeler
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.certifications" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Sertifikalar
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.languages" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Diller
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.hobbies" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Hobiler
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.awards" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Ödüller
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.volunteer" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Gönüllü
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="sections.references" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    Referanslar
+                  </label>
+                </div>
+
+                <div class="mt-3 flex items-center justify-between gap-3">
+                  <label class="flex items-center gap-2 text-sm text-slate-700 select-none" title="Yazdırırken ATS Modu otomatik açılsın">
+                    <input v-model="forceAtsOnPrint" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    PDF’de ATS Modu zorla
+                  </label>
+                  <button
+                    @click="selectAllSections(false)"
+                    class="text-xs font-semibold text-slate-700 hover:text-slate-900">
+                    Hepsi Kapat
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 gap-4">
+            <!-- CV İstatistikleri -->
+            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+              <div class="text-sm font-semibold">📊 CV İstatistikleri</div>
+              <div class="mt-3 grid grid-cols-2 gap-3">
+                <div class="rounded-lg bg-slate-50 p-3">
+                  <div class="text-2xl font-bold text-slate-900">{{ cvStats.wordCount }}</div>
+                  <div class="text-xs text-slate-600">Kelime</div>
+                </div>
+                <div class="rounded-lg bg-slate-50 p-3">
+                  <div class="text-2xl font-bold text-slate-900">{{ cvStats.charCount }}</div>
+                  <div class="text-xs text-slate-600">Karakter</div>
+                </div>
+                <div class="rounded-lg bg-slate-50 p-3">
+                  <div class="text-2xl font-bold text-slate-900">{{ cvStats.completionPercent }}%</div>
+                  <div class="text-xs text-slate-600">Tamamlanma</div>
+                </div>
+                <div class="rounded-lg bg-slate-50 p-3">
+                  <div class="text-2xl font-bold" :class="cvStats.atsScore >= 80 ? 'text-emerald-600' : cvStats.atsScore >= 60 ? 'text-amber-600' : 'text-rose-600'">{{ cvStats.atsScore }}</div>
+                  <div class="text-xs text-slate-600">ATS Skoru</div>
+                </div>
+              </div>
+              <div class="mt-2 text-xs text-slate-500">
+                {{ cvStats.atsScore >= 80 ? '✅ Mükemmel! ATS sistemleri kolayca okuyabilir.' : cvStats.atsScore >= 60 ? '⚠️ İyi, ama geliştirilebilir.' : '❌ Eksikler var. Daha fazla detay ekleyin.' }}
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+              <div class="text-sm font-semibold">ATS Kontrol Listesi</div>
+              <div class="mt-2 space-y-2 text-sm">
+                <div v-for="(c, i) in atsChecks" :key="i" class="flex items-start justify-between gap-3">
+                  <div class="text-slate-700">{{ c.label }}</div>
+                  <div
+                    class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+                    :class="c.ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'">
+                    {{ c.ok ? 'OK' : 'Eksik' }}
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 text-xs text-slate-500">
+                Not: Hiçbir şablon %100 garanti vermez; amaç parse edilebilir, sade metin üretmek.
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+              <div class="text-sm font-semibold">Kısa kullanım</div>
+              <ul class="mt-2 space-y-1 text-sm text-slate-600 list-disc pl-5">
+                <li>Solda bilgileri doldur; sağda anlık güncellenecek.</li>
+                <li>"PDF İndir" yazdırma penceresini açar; çıktıda sadece CV görünür.</li>
+                <li>Metinleri kısa ve ölçülebilir yaz (ATS uyumu).</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT PANEL (60%) -->
+        <section class="lg:col-span-6">
+          <div class="print-area flex items-start justify-center lg:justify-end">
+            <article class="a4 paper-shadow rounded-2xl bg-white border border-slate-200 p-10" :class="[themeClass, fontClass]">
+              <!-- Header -->
+              <header>
+                <!-- ATS-friendly header (single column, simple separators) -->
+                <div v-if="atsMode" class="">
+                  <div class="flex items-start gap-6">
+                    <img v-if="cv.photo" :src="cv.photo" alt="Profil" class="h-24 w-24 rounded-lg object-cover border-2 border-slate-200" />
+                    <div class="flex-1 min-w-0">
+                      <h1 class="text-2xl font-bold tracking-tight theme-color-primary">
+                        {{ fullName || 'Ad Soyad' }}
+                      </h1>
+                  <div class="mt-1 text-sm font-medium text-slate-700">
+                    {{ cv.title || 'Ünvan' }}
+                  </div>
+                      <div class="mt-2 text-xs text-slate-700 leading-5">
+                        <span v-if="contactItems.length" class="whitespace-pre-wrap">
+                          <span v-for="(item, i) in contactItems" :key="i">
+                            <span v-if="i !== 0"> | </span>{{ item }}
+                          </span>
+                        </span>
+                        <span v-else class="text-slate-400">İletişim bilgileri</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Pretty header (still simple) -->
+                <div v-else class="flex items-start justify-between gap-6">
+                  <div class="flex items-start gap-6 flex-1 min-w-0">
+                    <img v-if="cv.photo" :src="cv.photo" alt="Profil" class="h-28 w-28 rounded-xl object-cover border-2 border-slate-200" />
+                    <div class="min-w-0">
+                      <h1 class="text-2xl font-bold tracking-tight theme-color-primary">
+                        {{ fullName || 'Ad Soyad' }}
+                      </h1>
+                      <div class="mt-1 text-sm font-medium text-slate-700">
+                        {{ cv.title || 'Ünvan' }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="text-right text-xs text-slate-700 leading-5">
+                    <div v-if="cv.contact.email">{{ cv.contact.email }}</div>
+                    <div v-if="cv.contact.phone">{{ cv.contact.phone }}</div>
+                    <div v-if="cv.contact.location">{{ cv.contact.location }}</div>
+                    <div v-if="cv.contact.linkedin">{{ cv.contact.linkedin }}</div>
+                    <div v-if="cv.contact.github">👙 {{ cv.contact.github }}</div>
+                    <div v-if="cv.contact.twitter">🐦 {{ cv.contact.twitter }}</div>
+                    <div v-if="cv.contact.website">{{ cv.contact.website }}</div>
+                    <div v-if="!hasAnyContact" class="text-slate-400">İletişim bilgileri</div>
+                  </div>
+                </div>
+
+                <div class="mt-4 h-px w-full bg-slate-200"></div>
+              </header>
+
+              <!-- Summary -->
+              <section class="mt-5" v-if="sections.summary">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Özet</h2>
+                <p class="mt-2 text-sm text-slate-800 leading-relaxed whitespace-pre-line">
+                  {{ cv.summary || 'Kısa bir profesyonel özet yazın. Odak: güçlü yönleriniz, kullandığınız teknolojiler ve elde ettiğiniz sonuçlar.' }}
+                </p>
+              </section>
+
+              <!-- Skills -->
+              <section class="mt-5" v-if="sections.skills && skillsList.length">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Yetenekler</h2>
+                <p class="mt-2 text-sm text-slate-800">
+                  {{ skillsText }}
+                </p>
+              </section>
+
+              <!-- Experience -->
+              <section class="mt-6" v-if="sections.experience">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Deneyim</h2>
+
+                <div class="mt-3 space-y-4">
+                  <div v-for="exp in cv.experiences" :key="exp.id">
+                    <div class="flex items-baseline justify-between gap-4">
+                      <div class="min-w-0">
+                        <div class="text-sm font-semibold text-slate-900">
+                          <template v-if="atsMode">
+                            {{ exp.role || 'Pozisyon' }}<span class="font-normal text-slate-700" v-if="exp.company"> - {{ exp.company }}</span>
+                          </template>
+                          <template v-else>
+                            {{ exp.role || 'Pozisyon' }}
+                            <span class="font-normal text-slate-600" v-if="exp.company">• {{ exp.company }}</span>
+                          </template>
+                        </div>
+                        <div class="text-xs text-slate-600" v-if="exp.location">{{ exp.location }}</div>
+                      </div>
+                      <div class="shrink-0 text-xs text-slate-600">
+                        <span v-if="exp.start || exp.end || exp.ongoing">{{ exp.start || '—' }} – {{ exp.ongoing ? 'Devam' : (exp.end || '—') }}</span>
+                      </div>
+                    </div>
+
+                    <ul class="mt-2 list-disc pl-5 text-sm text-slate-800 space-y-1" v-if="bulletLines(exp.description).length">
+                      <li v-for="(line, i) in bulletLines(exp.description)" :key="i" class="whitespace-pre-line">{{ line }}</li>
+                    </ul>
+                    <p v-else class="placeholder mt-2 text-sm text-slate-500">Deneyim detaylarını madde madde ekleyin.</p>
+                  </div>
+
+                  <div v-if="cv.experiences.length === 0" class="placeholder text-sm text-slate-500">
+                    Deneyim eklenmedi.
+                  </div>
+                </div>
+              </section>
+
+              <!-- Education -->
+              <section class="mt-6" v-if="sections.education">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Eğitim</h2>
+                <div class="mt-3 space-y-4">
+                  <div v-for="edu in cv.education" :key="edu.id">
+                    <div class="flex items-baseline justify-between gap-4">
+                      <div class="min-w-0">
+                        <div class="text-sm font-semibold text-slate-900">
+                          {{ edu.school || 'Okul' }}
+                        </div>
+                        <div class="text-sm text-slate-700">
+                          {{ edu.program || 'Bölüm / Program' }}
+                        </div>
+                        <div class="text-xs text-slate-600" v-if="edu.notes">{{ edu.notes }}</div>
+                      </div>
+                      <div class="shrink-0 text-xs text-slate-600">
+                        <span v-if="edu.start || edu.end || edu.ongoing">{{ edu.start || '—' }} – {{ edu.ongoing ? 'Devam' : (edu.end || '—') }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="cv.education.length === 0" class="placeholder text-sm text-slate-500">
+                    Eğitim eklenmedi.
+                  </div>
+                </div>
+              </section>
+
+              <!-- Projects -->
+              <section class="mt-6" v-if="sections.projects && cv.projects.length">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Projeler</h2>
+                <div class="mt-3 space-y-4">
+                  <div v-for="p in cv.projects" :key="p.id">
+                    <div class="text-sm font-semibold text-slate-900">
+                      {{ p.name || 'Proje Adı' }}
+                      <span class="font-normal text-slate-700" v-if="p.tech"> — {{ p.tech }}</span>
+                    </div>
+                    <div class="text-xs text-slate-600" v-if="p.link">{{ p.link }}</div>
+
+                    <ul class="mt-2 list-disc pl-5 text-sm text-slate-800 space-y-1" v-if="bulletLines(p.description).length">
+                      <li v-for="(line, i) in bulletLines(p.description)" :key="i" class="whitespace-pre-line">{{ line }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Certifications -->
+              <section class="mt-6" v-if="sections.certifications && cv.certifications.length">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Sertifikalar</h2>
+                <div class="mt-3 space-y-3">
+                  <div v-for="c in cv.certifications" :key="c.id" class="text-sm text-slate-800">
+                    <div class="font-semibold text-slate-900">{{ c.name || 'Sertifika' }}</div>
+                    <div class="text-xs text-slate-600">
+                      <span v-if="c.issuer">{{ c.issuer }}</span>
+                      <span v-if="c.year"><span v-if="c.issuer"> • </span>{{ c.year }}</span>
+                      <span v-if="c.link"><span v-if="c.issuer || c.year"> • </span>{{ c.link }}</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Languages -->
+              <section class="mt-6" v-if="sections.languages && cv.languages.length">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Diller</h2>
+                <div class="mt-3 space-y-2">
+                  <div v-for="l in cv.languages" :key="l.id" class="flex items-baseline justify-between gap-4 text-sm">
+                    <div class="font-semibold text-slate-900">{{ l.name || 'Dil' }}</div>
+                    <div class="text-slate-700" v-if="l.level">{{ l.level }}</div>
+                    <div class="text-slate-400" v-else>—</div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Hobbies -->
+              <section class="mt-6" v-if="sections.hobbies && cv.hobbies">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Hobiler</h2>
+                <p class="mt-2 text-sm text-slate-800">{{ cv.hobbies }}</p>
+              </section>
+
+              <!-- Awards -->
+              <section class="mt-6" v-if="sections.awards && cv.awards.length">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Ödüller & Başarılar</h2>
+                <div class="mt-3 space-y-3">
+                  <div v-for="a in cv.awards" :key="a.id">
+                    <div class="flex items-baseline justify-between gap-4">
+                      <div class="text-sm font-semibold text-slate-900">{{ a.title || 'Ödül' }}</div>
+                      <div class="text-xs text-slate-600">{{ a.year }}</div>
+                    </div>
+                    <div class="text-xs text-slate-600" v-if="a.issuer">{{ a.issuer }}</div>
+                    <p class="mt-1 text-sm text-slate-700" v-if="a.description">{{ a.description }}</p>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Volunteer -->
+              <section class="mt-6" v-if="sections.volunteer && cv.volunteer.length">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Gönüllü Çalışmalar</h2>
+                <div class="mt-3 space-y-4">
+                  <div v-for="v in cv.volunteer" :key="v.id">
+                    <div class="flex items-baseline justify-between gap-4">
+                      <div class="min-w-0">
+                        <div class="text-sm font-semibold text-slate-900">{{ v.role || 'Rol' }}<span class="font-normal text-slate-600" v-if="v.organization"> • {{ v.organization }}</span></div>
+                      </div>
+                      <div class="shrink-0 text-xs text-slate-600">
+                        <span v-if="v.start || v.end || v.ongoing">{{ v.start || '—' }} – {{ v.ongoing ? 'Devam' : (v.end || '—') }}</span>
+                      </div>
+                    </div>
+                    <p class="mt-2 text-sm text-slate-800 whitespace-pre-line" v-if="v.description">{{ v.description }}</p>
+                  </div>
+                </div>
+              </section>
+
+              <!-- References -->
+              <section class="mt-6" v-if="sections.references && cv.references.length">
+                <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Referanslar</h2>
+                <div class="mt-3 space-y-3">
+                  <div v-for="r in cv.references" :key="r.id" class="text-sm">
+                    <div class="font-semibold text-slate-900">{{ r.name || 'Ad Soyad' }}</div>
+                    <div class="text-xs text-slate-700" v-if="r.position || r.company">
+                      <span v-if="r.position">{{ r.position }}</span>
+                      <span v-if="r.position && r.company"> - </span>
+                      <span v-if="r.company">{{ r.company }}</span>
+                    </div>
+                    <div class="text-xs text-slate-600" v-if="r.email">{{ r.email }}</div>
+                    <div class="text-xs text-slate-600" v-if="r.phone">{{ r.phone }}</div>
+                  </div>
+                </div>
+              </section>
+            </article>
+          </div>
+
+          <div class="no-print mt-4 text-center text-xs text-slate-500">
+            Yazdırma/PDF: Tarayıcı yazdırma penceresinde hedef "PDF olarak kaydet" seçebilirsiniz.
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Datalists -->
+  <datalist id="locations">
+    <option value="İstanbul, TR">
+    <option value="Ankara, TR">
+    <option value="İzmir, TR">
+    <option value="Bursa, TR">
+    <option value="Antalya, TR">
+    <option value="Remote">
+    <option value="Hybrid">
+  </datalist>
+
+  <datalist id="commonSkills">
+    <option value="JavaScript">
+    <option value="TypeScript">
+    <option value="Python">
+    <option value="Java">
+    <option value="C#">
+    <option value="React">
+    <option value="Vue.js">
+    <option value="Angular">
+    <option value="Node.js">
+    <option value="HTML5">
+    <option value="CSS3">
+    <option value="Tailwind CSS">
+    <option value="Git">
+    <option value="Docker">
+    <option value="AWS">
+    <option value="Azure">
+    <option value="SQL">
+    <option value="MongoDB">
+    <option value="REST API">
+    <option value="GraphQL">
+  </datalist>
+
+  <script>
+    const { createApp, computed } = Vue;
+
+    function uid() {
+      // Tek dosya için yeterli benzersizlik
+      return Math.random().toString(16).slice(2) + Date.now().toString(16);
+    }
+
+    createApp({
+      setup() {
+        const defaultModel = () => ({
+          firstName: '',
+          lastName: '',
+          title: '',
+          photo: '',
+          summary: '',
+          contact: {
+            email: '',
+            phone: '',
+            location: '',
+            linkedin: '',
+            github: '',
+            twitter: '',
+            website: ''
+          },
+          experiences: [],
+          education: [],
+          projects: [],
+          certifications: [],
+          languages: [],
+          skills: '',
+          hobbies: '',
+          awards: [],
+          volunteer: [],
+          references: []
+        });
+
+        // localStorage'dan önceki verileri oku
+        const loadFromStorage = () => {
+          try {
+            const saved = localStorage.getItem('cv-data');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              // ID'leri yeniden ata (localStorage'da kaybolabilir)
+              if (parsed.experiences) parsed.experiences.forEach(e => e.id = e.id || uid());
+              if (parsed.education) parsed.education.forEach(e => e.id = e.id || uid());
+              if (parsed.projects) parsed.projects.forEach(p => p.id = p.id || uid());
+              if (parsed.certifications) parsed.certifications.forEach(c => c.id = c.id || uid());
+              if (parsed.languages) parsed.languages.forEach(l => l.id = l.id || uid());
+              if (parsed.awards) parsed.awards.forEach(a => a.id = a.id || uid());
+              if (parsed.volunteer) parsed.volunteer.forEach(v => v.id = v.id || uid());
+              if (parsed.references) parsed.references.forEach(r => r.id = r.id || uid());
+              return { ...defaultModel(), ...parsed };
+            }
+          } catch (e) {
+            console.warn('localStorage okuma hatası:', e);
+          }
+          return defaultModel();
+        };
+
+        const loadSettings = () => {
+          try {
+            const saved = localStorage.getItem('cv-settings');
+            if (saved) {
+              return JSON.parse(saved);
+            }
+          } catch (e) {
+            console.warn('Ayarlar okuma hatası:', e);
+          }
+          return null;
+        };
+
+        const cv = Vue.reactive(loadFromStorage());
+        const savedSettings = loadSettings();
+        const atsMode = Vue.ref(savedSettings?.atsMode ?? true);
+        const forceAtsOnPrint = Vue.ref(savedSettings?.forceAtsOnPrint ?? true);
+        const sections = Vue.reactive(savedSettings?.sections || {
+          summary: true,
+          skills: true,
+          experience: true,
+          education: true,
+          projects: false,
+          certifications: false,
+          languages: false,
+          hobbies: false,
+          awards: false,
+          volunteer: false,
+          references: false
+        });
+        const newSkill = Vue.ref('');
+        const selectedTheme = Vue.ref(savedSettings?.selectedTheme || 'default');
+        const selectedFont = Vue.ref(savedSettings?.selectedFont || 'inter');
+        const showProfilesMenu = Vue.ref(false);
+        const newProfileName = Vue.ref('');
+        
+        // Kayıtlı profilleri yükle
+        const loadSavedProfiles = () => {
+          try {
+            const saved = localStorage.getItem('cv-profiles');
+            if (saved) {
+              return JSON.parse(saved);
+            }
+          } catch (e) {
+            console.warn('Profiller okuma hatası:', e);
+          }
+          return [];
+        };
+        
+        const savedProfiles = Vue.ref(loadSavedProfiles());
+
+        const fullName = Vue.computed(() => {
+          const first = (cv.firstName || '').trim();
+          const last = (cv.lastName || '').trim();
+          return [first, last].filter(Boolean).join(' ');
+        });
+
+        const hasAnyContact = Vue.computed(() => {
+          const c = cv.contact || {};
+          return Boolean(
+            (c.email || '').trim() ||
+            (c.phone || '').trim() ||
+            (c.location || '').trim() ||
+            (c.linkedin || '').trim() ||
+            (c.github || '').trim() ||
+            (c.twitter || '').trim() ||
+            (c.website || '').trim()
+          );
+        });
+
+        const contactItems = Vue.computed(() => {
+          const c = cv.contact || {};
+          return [c.email, c.phone, c.location, c.linkedin, c.github, c.twitter, c.website]
+            .map(v => (v || '').trim())
+            .filter(Boolean);
+        });
+
+        const allExperienceBulletsCount = Vue.computed(() => {
+          return (cv.experiences || []).reduce((acc, exp) => acc + bulletLines(exp.description).length, 0);
+        });
+
+        const atsChecks = Vue.computed(() => {
+          const nameOk = fullName.value.length >= 4;
+          const titleOk = (cv.title || '').trim().length >= 2;
+          const contactOk = (cv.contact.email || '').trim().length > 0 || (cv.contact.phone || '').trim().length > 0;
+          const summaryOk = (cv.summary || '').trim().length >= 120;
+          const expOk = (cv.experiences || []).length > 0;
+          const bulletsOk = allExperienceBulletsCount.value >= 2;
+          const skillsOk = skillsList.value.length >= 5 || !sections.skills;
+          return [
+            { label: 'İsim + soyisim dolu', ok: nameOk },
+            { label: 'Ünvan dolu', ok: titleOk },
+            { label: 'E-posta veya telefon var', ok: contactOk },
+            { label: 'Özet yeterince açıklayıcı (≥ 120 karakter)', ok: summaryOk || !sections.summary },
+            { label: 'En az 1 deneyim', ok: expOk || !sections.experience },
+            { label: 'Deneyimde en az 2 madde', ok: bulletsOk || !sections.experience },
+            { label: 'Yetenekler (≥ 5 anahtar kelime)', ok: skillsOk }
+          ];
+        });
+
+        const skillsList = Vue.computed(() => {
+          return (cv.skills || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+        });
+
+        const skillsText = Vue.computed(() => {
+          // ATS modunda virgül ile; ekranda daha "güzel" görünüm için nokta kullanılabilir.
+          return atsMode.value ? skillsList.value.join(', ') : skillsList.value.join(' • ');
+        });
+
+        const themeClass = Vue.computed(() => {
+          if (selectedTheme.value === 'default') return '';
+          return `theme-${selectedTheme.value}`;
+        });
+
+        const fontClass = Vue.computed(() => {
+          return `font-${selectedFont.value}`;
+        });
+
+        const cvStats = Vue.computed(() => {
+          // Kelime sayısı
+          const text = [
+            cv.summary,
+            ...cv.experiences.map(e => e.description),
+            ...cv.education.map(e => e.notes),
+            ...cv.projects.map(p => p.description),
+            ...cv.volunteer.map(v => v.description),
+            ...cv.awards.map(a => a.description)
+          ].filter(Boolean).join(' ');
+          const words = text.split(/\s+/).filter(Boolean);
+          const wordCount = words.length;
+          const charCount = text.length;
+
+          // Tamamlanma yüzdesi
+          let completed = 0;
+          let total = 10;
+          if (fullName.value.length >= 4) completed++;
+          if ((cv.title || '').trim()) completed++;
+          if ((cv.summary || '').trim()) completed++;
+          if (hasAnyContact.value) completed++;
+          if (cv.experiences.length > 0) completed++;
+          if (cv.education.length > 0) completed++;
+          if (skillsList.value.length >= 3) completed++;
+          if (cv.projects.length > 0) completed++;
+          if (cv.certifications.length > 0) completed++;
+          if (cv.languages.length > 0) completed++;
+          const completionPercent = Math.round((completed / total) * 100);
+
+          // ATS Skoru (daha detaylı)
+          let score = 0;
+          if (fullName.value.length >= 4) score += 10;
+          if ((cv.title || '').trim()) score += 10;
+          if (hasAnyContact.value) score += 10;
+          if ((cv.summary || '').trim().length >= 120) score += 15;
+          else if ((cv.summary || '').trim()) score += 5;
+          if (cv.experiences.length >= 2) score += 15;
+          else if (cv.experiences.length === 1) score += 10;
+          if (allExperienceBulletsCount.value >= 3) score += 10;
+          if (skillsList.value.length >= 5) score += 10;
+          else if (skillsList.value.length >= 3) score += 5;
+          if (cv.education.length > 0) score += 10;
+          if (cv.projects.length > 0) score += 5;
+          if (cv.certifications.length > 0) score += 5;
+
+          return { wordCount, charCount, completionPercent, atsScore: score };
+        });
+
+        const bulletLines = (text) => {
+          const raw = (text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          // Kullanıcı "-" ile başlatmışsa onu temizle
+          return raw.map(l => l.replace(/^[-•]\s*/,'')).filter(Boolean);
+        };
+
+        const addExperience = () => {
+          cv.experiences.push({
+            id: uid(),
+            company: '',
+            role: '',
+            start: '',
+            end: '',
+            location: '',
+            description: ''
+          });
+        };
+
+        const removeExperience = (id) => {
+          cv.experiences = cv.experiences.filter(e => e.id !== id);
+        };
+
+        const addEducation = () => {
+          cv.education.push({
+            id: uid(),
+            school: '',
+            program: '',
+            start: '',
+            end: '',
+            notes: ''
+          });
+        };
+
+        const removeEducation = (id) => {
+          cv.education = cv.education.filter(e => e.id !== id);
+        };
+
+        const addProject = () => {
+          cv.projects.push({
+            id: uid(),
+            name: '',
+            tech: '',
+            link: '',
+            description: ''
+          });
+        };
+
+        const removeProject = (id) => {
+          cv.projects = cv.projects.filter(p => p.id !== id);
+        };
+
+        const addCertification = () => {
+          cv.certifications.push({
+            id: uid(),
+            name: '',
+            issuer: '',
+            year: '',
+            link: ''
+          });
+        };
+
+        const removeCertification = (id) => {
+          cv.certifications = cv.certifications.filter(c => c.id !== id);
+        };
+
+        const addLanguage = () => {
+          cv.languages.push({
+            id: uid(),
+            name: '',
+            level: ''
+          });
+        };
+
+        const removeLanguage = (id) => {
+          cv.languages = cv.languages.filter(l => l.id !== id);
+        };
+
+        const addAward = () => {
+          cv.awards.push({
+            id: uid(),
+            title: '',
+            issuer: '',
+            year: '',
+            description: ''
+          });
+        };
+
+        const removeAward = (id) => {
+          cv.awards = cv.awards.filter(a => a.id !== id);
+        };
+
+        const addVolunteer = () => {
+          cv.volunteer.push({
+            id: uid(),
+            organization: '',
+            role: '',
+            start: '',
+            end: '',
+            ongoing: false,
+            description: ''
+          });
+        };
+
+        const removeVolunteer = (id) => {
+          cv.volunteer = cv.volunteer.filter(v => v.id !== id);
+        };
+
+        const addReference = () => {
+          cv.references.push({
+            id: uid(),
+            name: '',
+            position: '',
+            company: '',
+            email: '',
+            phone: ''
+          });
+        };
+
+        const removeReference = (id) => {
+          cv.references = cv.references.filter(r => r.id !== id);
+        };
+
+        let restoreAtsMode = null;
+        Vue.onMounted(() => {
+          window.addEventListener('afterprint', () => {
+            if (restoreAtsMode !== null) {
+              atsMode.value = restoreAtsMode;
+              restoreAtsMode = null;
+            }
+          });
+          // Menu dışına tıklayınca kapat
+          document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative') || e.target.closest('button')) {
+              // Ama buton'a tıklanırsa aç/kapat toggle yapıyor zaten
+            }
+          });
+        });
+
+        const printPdf = () => {
+          restoreAtsMode = atsMode.value;
+          if (forceAtsOnPrint.value) {
+            atsMode.value = true;
+          }
+          setTimeout(() => window.print(), 50);
+        };
+
+        const downloadPdf = () => {
+          if (typeof html2pdf === 'undefined') {
+            printPdf();
+            return;
+          }
+          restoreAtsMode = atsMode.value;
+          if (forceAtsOnPrint.value) {
+            atsMode.value = true;
+          }
+          setTimeout(() => {
+            var el = document.querySelector('.print-area .a4');
+            if (!el) {
+              alert('CV bulunamadı');
+              if (restoreAtsMode !== null) {
+                atsMode.value = restoreAtsMode;
+                restoreAtsMode = null;
+              }
+              return;
+            }
+            var opt = {
+              margin: 10,
+              filename: (fullName.value || 'CV') + '.pdf',
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2 },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(el).save().then(() => {
+              if (restoreAtsMode !== null) {
+                atsMode.value = restoreAtsMode;
+                restoreAtsMode = null;
+              }
+            });
+          }, 50);
+        };
+
+        const selectAllSections = (value) => {
+          sections.summary = value;
+          sections.skills = value;
+          sections.experience = value;
+          sections.education = value;
+          sections.projects = value;
+          sections.certifications = value;
+          sections.languages = value;
+          sections.hobbies = value;
+          sections.awards = value;
+          sections.volunteer = value;
+          sections.references = value;
+        };
+
+        const addSkill = () => {
+          const skill = newSkill.value.trim();
+          if (!skill) return;
+          const current = cv.skills ? cv.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+          if (!current.includes(skill)) {
+            current.push(skill);
+            cv.skills = current.join(', ');
+          }
+          newSkill.value = '';
+        };
+
+        const removeSkill = (index) => {
+          const current = skillsList.value;
+          current.splice(index, 1);
+          cv.skills = current.join(', ');
+        };
+
+        const handlePhotoUpload = (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+          if (file.size > 2 * 1024 * 1024) {
+            alert('Dosya boyutu 2MB\'den küçük olmalı');
+            event.target.value = '';
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            cv.photo = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        };
+
+        const exportJSON = () => {
+          const data = {
+            version: '1.0',
+            cv: cv,
+            settings: {
+              selectedTheme: selectedTheme.value,
+              selectedFont: selectedFont.value,
+              sections: { ...sections }
+            }
+          };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `cv-${fullName.value || 'export'}-${new Date().toISOString().split('T')[0]}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          showProfilesMenu.value = false;
+        };
+
+        const importJSON = (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target.result);
+              if (data.cv) {
+                Object.keys(data.cv).forEach(key => {
+                  if (Array.isArray(data.cv[key])) {
+                    cv[key] = data.cv[key].map(item => ({ ...item, id: item.id || uid() }));
+                  } else if (typeof data.cv[key] === 'object' && data.cv[key] !== null) {
+                    cv[key] = { ...data.cv[key] };
+                  } else {
+                    cv[key] = data.cv[key];
+                  }
+                });
+              }
+              if (data.settings) {
+                if (data.settings.selectedTheme) selectedTheme.value = data.settings.selectedTheme;
+                if (data.settings.selectedFont) selectedFont.value = data.settings.selectedFont;
+                if (data.settings.sections) Object.assign(sections, data.settings.sections);
+              }
+              alert('✅ CV başarıyla yüklendi!');
+            } catch (err) {
+              alert('❌ JSON dosyası okunamadı: ' + err.message);
+            }
+          };
+          reader.readAsText(file);
+          event.target.value = '';
+          showProfilesMenu.value = false;
+        };
+
+        // Profil yönetimi
+        const saveProfile = () => {
+          if (!newProfileName.value.trim()) {
+            alert('⚠️ Lütfen profil adı girin!');
+            return;
+          }
+          
+          const profile = {
+            id: uid(),
+            name: newProfileName.value.trim(),
+            date: new Date().toISOString(),
+            cv: JSON.parse(JSON.stringify(cv)),
+            settings: {
+              selectedTheme: selectedTheme.value,
+              selectedFont: selectedFont.value,
+              sections: { ...sections }
+            }
+          };
+          
+          savedProfiles.value.push(profile);
+          localStorage.setItem('cv-profiles', JSON.stringify(savedProfiles.value));
+          
+          newProfileName.value = '';
+          alert(`✅ "${profile.name}" profili kaydedildi!`);
+        };
+        
+        const loadProfile = (profileId) => {
+          const profile = savedProfiles.value.find(p => p.id === profileId);
+          if (!profile) {
+            alert('❌ Profil bulunamadı!');
+            return;
+          }
+          
+          if (!confirm(`📂 "${profile.name}" profili yüklenecek. Mevcut veriler değişecek. Emin misiniz?`)) {
+            return;
+          }
+          
+          // CV verilerini yükle
+          Object.keys(profile.cv).forEach(key => {
+            if (Array.isArray(profile.cv[key])) {
+              cv[key] = profile.cv[key].map(item => ({ ...item, id: item.id || uid() }));
+            } else if (typeof profile.cv[key] === 'object' && profile.cv[key] !== null) {
+              cv[key] = { ...profile.cv[key] };
+            } else {
+              cv[key] = profile.cv[key];
+            }
+          });
+          
+          // Ayarları yükle
+          if (profile.settings) {
+            if (profile.settings.selectedTheme) selectedTheme.value = profile.settings.selectedTheme;
+            if (profile.settings.selectedFont) selectedFont.value = profile.settings.selectedFont;
+            if (profile.settings.sections) Object.assign(sections, profile.settings.sections);
+          }
+          
+          showProfilesMenu.value = false;
+          alert(`✅ "${profile.name}" profili yüklendi!`);
+        };
+        
+        const deleteProfile = (profileId) => {
+          const profile = savedProfiles.value.find(p => p.id === profileId);
+          if (!profile) return;
+          
+          if (!confirm(`🗑️ "${profile.name}" profili silinecek. Emin misiniz?`)) {
+            return;
+          }
+          
+          savedProfiles.value = savedProfiles.value.filter(p => p.id !== profileId);
+          localStorage.setItem('cv-profiles', JSON.stringify(savedProfiles.value));
+          alert(`🗑️ "${profile.name}" profili silindi!`);
+        };
+
+        const loadTemplate = (type) => {
+          const names = {
+            junior: 'Junior Developer',
+            senior: 'Senior Developer',
+            manager: 'Engineering Manager',
+            designer: 'UI/UX Designer'
+          };
+          
+          if (names[type]) {
+            alert(`📝 ${names[type]} profili seçildi. Kendi bilgilerinizi girebilirsiniz.`);
+          }
+          showProfilesMenu.value = false;
+        };
+
+        const deleteCV = () => {
+          if (!confirm('🗑️ CV\'niz tamamen silinecek ve geri alınamayacak. Emin misiniz?')) return;
+          
+          // localStorage'ı temizle
+          localStorage.removeItem('cv-data');
+          localStorage.removeItem('cv-settings');
+          
+          const fresh = defaultModel();
+          // reactive objeyi koruyarak alanları güncelle
+          cv.firstName = fresh.firstName;
+          cv.lastName = fresh.lastName;
+          cv.title = fresh.title;
+          cv.photo = fresh.photo;
+          cv.summary = fresh.summary;
+          cv.contact = { ...fresh.contact };
+          cv.experiences = fresh.experiences.map(e => ({ ...e, id: uid() }));
+          cv.education = fresh.education.map(e => ({ ...e, id: uid() }));
+          cv.projects = fresh.projects.map(p => ({ ...p, id: uid() }));
+          cv.certifications = fresh.certifications.map(c => ({ ...c, id: uid() }));
+          cv.languages = fresh.languages.map(l => ({ ...l, id: uid() }));
+          cv.skills = fresh.skills;
+          cv.hobbies = fresh.hobbies;
+          cv.awards = fresh.awards.map(a => ({ ...a, id: uid() }));
+          cv.volunteer = fresh.volunteer.map(v => ({ ...v, id: uid() }));
+          cv.references = fresh.references.map(r => ({ ...r, id: uid() }));
+          
+          // Sections'ı varsayılana döndür
+          sections.summary = true;
+          sections.skills = true;
+          sections.experience = true;
+          sections.education = true;
+          sections.projects = false;
+          sections.certifications = false;
+          sections.languages = false;
+          sections.hobbies = false;
+          sections.awards = false;
+          sections.volunteer = false;
+          sections.references = false;
+          
+          // Tema ve font sıfırla
+          selectedTheme.value = 'default';
+          selectedFont.value = 'inter';
+          atsMode.value = true;
+          forceAtsOnPrint.value = true;
+          
+          // Skill input'ı temizle
+          newSkill.value = '';
+          
+          showProfilesMenu.value = false;
+          alert('🗑️ CV tamamen silindi!');
+        };
+
+        const resetAll = () => {
+          if (!confirm('⚠️ Tüm veriler silinecek. Emin misiniz?')) return;
+          
+          // localStorage'ı önce temizle
+          localStorage.removeItem('cv-data');
+          localStorage.removeItem('cv-settings');
+          
+          const fresh = defaultModel();
+          // reactive objeyi koruyarak alanları güncelle
+          cv.firstName = fresh.firstName;
+          cv.lastName = fresh.lastName;
+          cv.title = fresh.title;
+          cv.photo = fresh.photo;
+          cv.summary = fresh.summary;
+          cv.contact = { ...fresh.contact };
+          cv.experiences = fresh.experiences.map(e => ({ ...e, id: uid() }));
+          cv.education = fresh.education.map(e => ({ ...e, id: uid() }));
+          cv.projects = fresh.projects.map(p => ({ ...p, id: uid() }));
+          cv.certifications = fresh.certifications.map(c => ({ ...c, id: uid() }));
+          cv.languages = fresh.languages.map(l => ({ ...l, id: uid() }));
+          cv.skills = fresh.skills;
+          cv.hobbies = fresh.hobbies;
+          cv.awards = fresh.awards.map(a => ({ ...a, id: uid() }));
+          cv.volunteer = fresh.volunteer.map(v => ({ ...v, id: uid() }));
+          cv.references = fresh.references.map(r => ({ ...r, id: uid() }));
+          
+          // Sections'ı varsayılana döndür
+          sections.summary = true;
+          sections.skills = true;
+          sections.experience = true;
+          sections.education = true;
+          sections.projects = false;
+          sections.certifications = false;
+          sections.languages = false;
+          sections.hobbies = false;
+          sections.awards = false;
+          sections.volunteer = false;
+          sections.references = false;
+          
+          // Tema ve font sıfırla
+          selectedTheme.value = 'default';
+          selectedFont.value = 'inter';
+          atsMode.value = true;
+          forceAtsOnPrint.value = true;
+          
+          // Skill input'ı temizle
+          newSkill.value = '';
+          
+          alert('✅ Tüm veriler sıfırlandı!');
+        };
+
+        // Değişiklikleri otomatik kaydet
+        Vue.watch(
+          () => JSON.stringify(cv),
+          (newVal) => {
+            try {
+              localStorage.setItem('cv-data', newVal);
+            } catch (e) {
+              console.warn('localStorage yazma hatası:', e);
+            }
+          },
+          { deep: true }
+        );
+
+        Vue.watch(
+          () => ({ atsMode: atsMode.value, forceAtsOnPrint: forceAtsOnPrint.value, sections: { ...sections }, selectedTheme: selectedTheme.value, selectedFont: selectedFont.value }),
+          (newVal) => {
+            try {
+              localStorage.setItem('cv-settings', JSON.stringify(newVal));
+            } catch (e) {
+              console.warn('Ayarlar yazma hatası:', e);
+            }
+          },
+          { deep: true }
+        );
+
+        return {
+          cv,
+          atsMode,
+          forceAtsOnPrint,
+          sections,
+          newSkill,
+          selectedTheme,
+          selectedFont,
+          showProfilesMenu,
+          newProfileName,
+          savedProfiles,
+          themeClass,
+          fontClass,
+          cvStats,
+          fullName,
+          hasAnyContact,
+          contactItems,
+          atsChecks,
+          skillsList,
+          skillsText,
+          bulletLines,
+          addExperience,
+          removeExperience,
+          addEducation,
+          removeEducation,
+          addProject,
+          removeProject,
+          addCertification,
+          removeCertification,
+          addLanguage,
+          removeLanguage,
+          addAward,
+          removeAward,
+          addVolunteer,
+          removeVolunteer,
+          addReference,
+          removeReference,
+          addSkill,
+          removeSkill,
+          printPdf,
+          downloadPdf,
+          selectAllSections,
+          resetAll,
+          handlePhotoUpload,
+          exportJSON,
+          importJSON,
+          loadTemplate,
+          deleteCV,
+          saveProfile,
+          loadProfile,
+          deleteProfile
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

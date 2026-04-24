@@ -24,6 +24,7 @@
     :root{
       --a4-w: 210mm;
       --a4-h: 297mm;
+      --cv-text-scale: 1;
       
       /* Tema renkleri */
       --theme-primary: 15 23 42; /* slate-900 */
@@ -59,6 +60,25 @@
     .a4 {
       width: var(--a4-w);
       min-height: var(--a4-h);
+      --cv-text-scale: 1;
+    }
+
+    /* On izleme metinlerini toplu olcekle */
+    .a4 .text-xs {
+      font-size: calc(0.75rem * var(--cv-text-scale));
+      line-height: calc(1rem * var(--cv-text-scale));
+    }
+    .a4 .text-sm {
+      font-size: calc(0.875rem * var(--cv-text-scale));
+      line-height: calc(1.25rem * var(--cv-text-scale));
+    }
+    .a4 .text-base {
+      font-size: calc(1rem * var(--cv-text-scale));
+      line-height: calc(1.5rem * var(--cv-text-scale));
+    }
+    .a4 .text-2xl {
+      font-size: calc(1.5rem * var(--cv-text-scale));
+      line-height: calc(2rem * var(--cv-text-scale));
     }
 
     /* Ekranda A4'ü "kağıt" gibi göstermek için gölge */
@@ -144,11 +164,16 @@
             <option value="opensans">📝 Open Sans</option>
             <option value="montserrat">📝 Montserrat</option>
           </select>
+          <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5" title="On izleme metin boyutu">
+            <span class="text-xs text-slate-600 whitespace-nowrap">Metin</span>
+            <input v-model.number="textScale" type="range" min="80" max="120" step="5" class="w-20 accent-slate-900" />
+            <span class="w-10 text-right text-xs font-semibold text-slate-700">{{ textScale }}%</span>
+          </div>
           <label class="flex items-center gap-2 select-none" title="ATS Modu: Daha sade, tek kolon ve metin odaklı çıktı">
             <input v-model="atsMode" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
             <span class="text-sm font-medium text-slate-700">ATS Modu</span>
           </label>
-          <div class="relative">
+          <div class="relative" ref="profilesMenuRef">
             <button
               @click="showProfilesMenu = !showProfilesMenu"
               class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -188,6 +213,10 @@
                   <input type="file" accept=".json" @change="importJSON" class="hidden" />
                 </label>
                 <button @click="exportJSON" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-50">💾 JSON İndir</button>
+                <div class="border-t border-slate-200 my-1"></div>
+                <button @click="downloadAtsTxt" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-50">📝 ATS TXT İndir</button>
+                <button @click="downloadRtf" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-50">📄 RTF İndir (Word)</button>
+                <button @click="downloadDocx" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-50">🧾 DOCX İndir (Şablon)</button>
                 <div class="border-t border-slate-200 my-1"></div>
                 <button @click="deleteCV" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-red-50 text-red-600">🗑️ CV'yi Sil</button>
               </div>
@@ -565,6 +594,22 @@
                     Henüz sertifika eklemedin.
                   </div>
                 </div>
+
+                <div v-if="sections.certifications && (cv.certifications.length > 1 || certLayout.enabled)" class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <label class="flex items-start gap-2 text-sm text-slate-700 select-none">
+                    <input v-model="certLayout.enabled" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                    <span>Ön izleme içinde sertifikaları sürükle-bırak ile iki sütunda düzenle</span>
+                  </label>
+                  <div class="mt-2 flex items-center justify-between gap-3 text-xs text-slate-600">
+                    <span>İpucu: Kartı tutup sol veya sağ sütuna bırak.</span>
+                    <button
+                      v-if="certLayout.enabled"
+                      @click="resetCertificationLayout"
+                      class="font-semibold text-slate-700 hover:text-slate-900">
+                      Düzeni Sıfırla
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- Languages -->
@@ -843,6 +888,30 @@
                     Hepsi Kapat
                   </button>
                 </div>
+
+                <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-600">PDF Konumlandırma</h4>
+                    <button @click="resetPdfLayout" class="text-xs font-semibold text-slate-700 hover:text-slate-900">Sıfırla</button>
+                  </div>
+                  <div class="mt-3 grid grid-cols-1 gap-3">
+                    <label class="block">
+                      <div class="flex items-center justify-between text-xs text-slate-600">
+                        <span>Kenar boşluğu</span>
+                        <span class="font-semibold text-slate-700">{{ pdfMarginMm }} mm</span>
+                      </div>
+                      <input v-model.number="pdfMarginMm" type="range" min="4" max="16" step="1" class="mt-1 w-full accent-slate-900" />
+                    </label>
+                    <label class="block">
+                      <div class="flex items-center justify-between text-xs text-slate-600">
+                        <span>Yatay kaydırma</span>
+                        <span class="font-semibold text-slate-700">{{ pdfOffsetXMm > 0 ? '+' : '' }}{{ pdfOffsetXMm }} mm</span>
+                      </div>
+                      <input v-model.number="pdfOffsetXMm" type="range" min="-8" max="8" step="0.5" class="mt-1 w-full accent-slate-900" />
+                    </label>
+                  </div>
+                  <div class="mt-2 text-[11px] text-slate-500">Pozitif değer PDF’i sağa, negatif değer sola kaydırır.</div>
+                </div>
               </div>
             </div>
           </div>
@@ -905,7 +974,7 @@
         <!-- RIGHT PANEL (60%) -->
         <section class="lg:col-span-6">
           <div class="print-area flex items-start justify-center lg:justify-end">
-            <article class="a4 paper-shadow rounded-2xl bg-white border border-slate-200 p-10" :class="[themeClass, fontClass]">
+            <article class="a4 paper-shadow rounded-2xl bg-white border border-slate-200 p-10" :class="[themeClass, fontClass]" :style="previewStyle">
               <!-- Header -->
               <header>
                 <!-- ATS-friendly header (single column, simple separators) -->
@@ -950,7 +1019,7 @@
                     <div v-if="cv.contact.phone">{{ cv.contact.phone }}</div>
                     <div v-if="cv.contact.location">{{ cv.contact.location }}</div>
                     <div v-if="cv.contact.linkedin">{{ cv.contact.linkedin }}</div>
-                    <div v-if="cv.contact.github">👙 {{ cv.contact.github }}</div>
+                    <div v-if="cv.contact.github">GitHub: {{ cv.contact.github }}</div>
                     <div v-if="cv.contact.twitter">🐦 {{ cv.contact.twitter }}</div>
                     <div v-if="cv.contact.website">{{ cv.contact.website }}</div>
                     <div v-if="!hasAnyContact" class="text-slate-400">İletişim bilgileri</div>
@@ -1060,7 +1129,60 @@
               <!-- Certifications -->
               <section class="mt-6" v-if="sections.certifications && cv.certifications.length">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Sertifikalar</h2>
-                <div class="mt-3 space-y-3">
+                <div v-if="certLayout.enabled" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="rounded-lg border border-dashed border-slate-300 p-3" @dragover.prevent @drop="dropCertification($event, 'left')">
+                    <div class="no-print text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sol Sütun</div>
+                    <div class="mt-2 min-h-10 space-y-2">
+                      <div
+                        v-for="c in certColumnItems.left"
+                        :key="'left-' + c.id"
+                        draggable="true"
+                        @dragstart="startCertificationDrag($event, c.id)"
+                        @dragend="endCertificationDrag"
+                        @dragover.prevent
+                        @drop.stop="dropCertification($event, 'left', c.id)"
+                        class="cursor-move rounded-lg border border-slate-200 bg-white p-2 text-sm text-slate-800">
+                        <div class="no-print mb-1 flex justify-end">
+                          <button @click.stop="moveCertification(c.id, 'right')" class="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Sağa al</button>
+                        </div>
+                        <div class="font-semibold text-slate-900">{{ c.name || 'Sertifika' }}</div>
+                        <div class="text-xs text-slate-600">
+                          <span v-if="c.issuer">{{ c.issuer }}</span>
+                          <span v-if="c.year"><span v-if="c.issuer"> • </span>{{ c.year }}</span>
+                          <span v-if="c.link"><span v-if="c.issuer || c.year"> • </span>{{ c.link }}</span>
+                        </div>
+                      </div>
+                      <div v-if="certColumnItems.left.length === 0" class="no-print text-xs text-slate-400">Buraya bırak</div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-dashed border-slate-300 p-3" @dragover.prevent @drop="dropCertification($event, 'right')">
+                    <div class="no-print text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sağ Sütun</div>
+                    <div class="mt-2 min-h-10 space-y-2">
+                      <div
+                        v-for="c in certColumnItems.right"
+                        :key="'right-' + c.id"
+                        draggable="true"
+                        @dragstart="startCertificationDrag($event, c.id)"
+                        @dragend="endCertificationDrag"
+                        @dragover.prevent
+                        @drop.stop="dropCertification($event, 'right', c.id)"
+                        class="cursor-move rounded-lg border border-slate-200 bg-white p-2 text-sm text-slate-800">
+                        <div class="no-print mb-1 flex justify-end">
+                          <button @click.stop="moveCertification(c.id, 'left')" class="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Sola al</button>
+                        </div>
+                        <div class="font-semibold text-slate-900">{{ c.name || 'Sertifika' }}</div>
+                        <div class="text-xs text-slate-600">
+                          <span v-if="c.issuer">{{ c.issuer }}</span>
+                          <span v-if="c.year"><span v-if="c.issuer"> • </span>{{ c.year }}</span>
+                          <span v-if="c.link"><span v-if="c.issuer || c.year"> • </span>{{ c.link }}</span>
+                        </div>
+                      </div>
+                      <div v-if="certColumnItems.right.length === 0" class="no-print text-xs text-slate-400">Buraya bırak</div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="mt-3 space-y-3">
                   <div v-for="c in cv.certifications" :key="c.id" class="text-sm text-slate-800">
                     <div class="font-semibold text-slate-900">{{ c.name || 'Sertifika' }}</div>
                     <div class="text-xs text-slate-600">
@@ -1258,8 +1380,26 @@
 
         const cv = Vue.reactive(loadFromStorage());
         const savedSettings = loadSettings();
+        const clampTextScale = (value) => {
+          const num = Number(value);
+          if (Number.isNaN(num)) return 100;
+          return Math.min(120, Math.max(80, Math.round(num / 5) * 5));
+        };
+        const clampPdfMargin = (value) => {
+          const num = Number(value);
+          if (Number.isNaN(num)) return 8;
+          return Math.min(16, Math.max(4, Math.round(num)));
+        };
+        const clampPdfOffsetX = (value) => {
+          const num = Number(value);
+          if (Number.isNaN(num)) return 0;
+          return Math.min(8, Math.max(-8, Math.round(num * 2) / 2));
+        };
         const atsMode = Vue.ref(savedSettings?.atsMode ?? true);
         const forceAtsOnPrint = Vue.ref(savedSettings?.forceAtsOnPrint ?? true);
+        const textScale = Vue.ref(clampTextScale(savedSettings?.textScale ?? 100));
+        const pdfMarginMm = Vue.ref(clampPdfMargin(savedSettings?.pdfLayout?.marginMm ?? 8));
+        const pdfOffsetXMm = Vue.ref(clampPdfOffsetX(savedSettings?.pdfLayout?.offsetXMm ?? 0));
         const sections = Vue.reactive(savedSettings?.sections || {
           summary: true,
           skills: true,
@@ -1277,7 +1417,14 @@
         const selectedTheme = Vue.ref(savedSettings?.selectedTheme || 'default');
         const selectedFont = Vue.ref(savedSettings?.selectedFont || 'inter');
         const showProfilesMenu = Vue.ref(false);
+        const profilesMenuRef = Vue.ref(null);
         const newProfileName = Vue.ref('');
+        const certLayout = Vue.reactive({
+          enabled: savedSettings?.certLayout?.enabled ?? false,
+          left: Array.isArray(savedSettings?.certLayout?.left) ? [...savedSettings.certLayout.left] : [],
+          right: Array.isArray(savedSettings?.certLayout?.right) ? [...savedSettings.certLayout.right] : []
+        });
+        const draggedCertificationId = Vue.ref('');
         
         // Kayıtlı profilleri yükle
         const loadSavedProfiles = () => {
@@ -1355,6 +1502,20 @@
           return atsMode.value ? skillsList.value.join(', ') : skillsList.value.join(' • ');
         });
 
+        const certificationById = Vue.computed(() => {
+          return (cv.certifications || []).reduce((acc, cert) => {
+            acc[cert.id] = cert;
+            return acc;
+          }, {});
+        });
+
+        const certColumnItems = Vue.computed(() => {
+          return {
+            left: certLayout.left.map(id => certificationById.value[id]).filter(Boolean),
+            right: certLayout.right.map(id => certificationById.value[id]).filter(Boolean)
+          };
+        });
+
         const themeClass = Vue.computed(() => {
           if (selectedTheme.value === 'default') return '';
           return `theme-${selectedTheme.value}`;
@@ -1362,6 +1523,10 @@
 
         const fontClass = Vue.computed(() => {
           return `font-${selectedFont.value}`;
+        });
+
+        const previewStyle = Vue.computed(() => {
+          return { '--cv-text-scale': String(textScale.value / 100) };
         });
 
         const cvStats = Vue.computed(() => {
@@ -1416,6 +1581,81 @@
           const raw = (text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
           // Kullanıcı "-" ile başlatmışsa onu temizle
           return raw.map(l => l.replace(/^[-•]\s*/,'')).filter(Boolean);
+        };
+
+        const syncCertificationLayout = () => {
+          const certificationIds = (cv.certifications || []).map(c => c.id);
+          const validIdSet = new Set(certificationIds);
+
+          certLayout.left = certLayout.left.filter(id => validIdSet.has(id));
+          certLayout.right = certLayout.right.filter(id => validIdSet.has(id) && !certLayout.left.includes(id));
+
+          certificationIds.forEach(id => {
+            if (!certLayout.left.includes(id) && !certLayout.right.includes(id)) {
+              certLayout.left.push(id);
+            }
+          });
+        };
+
+        const resetCertificationLayout = () => {
+          certLayout.left = cv.certifications.map(c => c.id);
+          certLayout.right = [];
+        };
+
+        const startCertificationDrag = (event, certId) => {
+          if (event?.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', certId);
+          }
+          draggedCertificationId.value = certId;
+        };
+
+        const endCertificationDrag = () => {
+          draggedCertificationId.value = '';
+        };
+
+        const placeCertification = (certId, column, beforeId = null) => {
+          if (!certId) return;
+          if (!['left', 'right'].includes(column)) return;
+          if (beforeId && certId === beforeId) return;
+
+          certLayout.left = certLayout.left.filter(id => id !== certId);
+          certLayout.right = certLayout.right.filter(id => id !== certId);
+
+          const targetColumn = [...certLayout[column]];
+          if (beforeId) {
+            const insertAt = targetColumn.indexOf(beforeId);
+            if (insertAt >= 0) {
+              targetColumn.splice(insertAt, 0, certId);
+            } else {
+              targetColumn.push(certId);
+            }
+          } else {
+            targetColumn.push(certId);
+          }
+
+          certLayout[column] = targetColumn;
+        };
+
+        const moveCertification = (certId, targetColumn) => {
+          placeCertification(certId, targetColumn);
+        };
+
+        const resetPdfLayout = () => {
+          pdfMarginMm.value = 8;
+          pdfOffsetXMm.value = 0;
+        };
+
+        const dropCertification = (event, column, beforeId = null) => {
+          if (event?.preventDefault) {
+            event.preventDefault();
+          }
+          if (!['left', 'right'].includes(column)) return;
+
+          const certIdFromTransfer = event?.dataTransfer?.getData('text/plain');
+          const certId = certIdFromTransfer || draggedCertificationId.value;
+          placeCertification(certId, column, beforeId);
+          draggedCertificationId.value = '';
         };
 
         const addExperience = () => {
@@ -1534,63 +1774,551 @@
           cv.references = cv.references.filter(r => r.id !== id);
         };
 
+        Vue.watch(
+          () => cv.certifications.map(c => c.id),
+          () => {
+            syncCertificationLayout();
+          },
+          { immediate: true }
+        );
+
+        Vue.watch(
+          () => certLayout.enabled,
+          (enabled) => {
+            if (enabled) {
+              syncCertificationLayout();
+            }
+          },
+          { immediate: true }
+        );
+
         let restoreAtsMode = null;
+        let afterPrintHandler = null;
+        let outsideClickHandler = null;
         Vue.onMounted(() => {
-          window.addEventListener('afterprint', () => {
+          afterPrintHandler = () => {
             if (restoreAtsMode !== null) {
               atsMode.value = restoreAtsMode;
               restoreAtsMode = null;
             }
-          });
-          // Menu dışına tıklayınca kapat
-          document.addEventListener('click', (e) => {
-            if (!e.target.closest('.relative') || e.target.closest('button')) {
-              // Ama buton'a tıklanırsa aç/kapat toggle yapıyor zaten
+          };
+          window.addEventListener('afterprint', afterPrintHandler);
+
+          // Menu dışına tıklanınca profiller panelini kapat
+          outsideClickHandler = (e) => {
+            if (!profilesMenuRef.value) return;
+            if (!profilesMenuRef.value.contains(e.target)) {
+              showProfilesMenu.value = false;
             }
-          });
+          };
+          document.addEventListener('click', outsideClickHandler);
         });
 
-        const printPdf = () => {
-          restoreAtsMode = atsMode.value;
-          if (forceAtsOnPrint.value) {
-            atsMode.value = true;
+        Vue.onBeforeUnmount(() => {
+          if (afterPrintHandler) {
+            window.removeEventListener('afterprint', afterPrintHandler);
           }
-          setTimeout(() => window.print(), 50);
+          if (outsideClickHandler) {
+            document.removeEventListener('click', outsideClickHandler);
+          }
+        });
+
+        const ensureHtml2PdfLoaded = () => {
+          if (typeof html2pdf !== 'undefined') {
+            return Promise.resolve();
+          }
+
+          const sources = [
+            'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+            'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js',
+            'https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js'
+          ];
+
+          return new Promise((resolve, reject) => {
+            let idx = 0;
+
+            const tryNext = () => {
+              if (typeof html2pdf !== 'undefined') {
+                resolve();
+                return;
+              }
+
+              if (idx >= sources.length) {
+                reject(new Error('html2pdf yüklenemedi. İnternet bağlantınızı kontrol edin.'));
+                return;
+              }
+
+              const src = sources[idx++];
+              const script = document.createElement('script');
+              script.src = src;
+              script.async = true;
+              script.onload = () => {
+                if (typeof html2pdf !== 'undefined') {
+                  resolve();
+                } else {
+                  tryNext();
+                }
+              };
+              script.onerror = tryNext;
+              document.head.appendChild(script);
+            };
+
+            tryNext();
+          });
         };
 
-        const downloadPdf = () => {
-          if (typeof html2pdf === 'undefined') {
-            printPdf();
-            return;
-          }
+        const printPdf = async () => {
           restoreAtsMode = atsMode.value;
           if (forceAtsOnPrint.value) {
             atsMode.value = true;
           }
-          setTimeout(() => {
+          await Vue.nextTick();
+          window.print();
+        };
+
+        const cleanText = (value) => {
+          if (value === null || value === undefined) return '';
+          return String(value).trim();
+        };
+
+        const makeExportFileBase = () => {
+          return (cleanText(fullName.value) || 'CV').replace(/[\\/:*?"<>|]+/g, '-');
+        };
+
+        const downloadBlob = (blob, fileName) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+
+        const buildAtsText = () => {
+          const lines = [];
+          const contact = [
+            cv.contact.email,
+            cv.contact.phone,
+            cv.contact.location,
+            cv.contact.linkedin,
+            cv.contact.github,
+            cv.contact.twitter,
+            cv.contact.website
+          ].map(cleanText).filter(Boolean).join(' | ');
+
+          lines.push(cleanText(fullName.value) || 'Ad Soyad');
+          const cvTitle = cleanText(cv.title);
+          if (cvTitle) lines.push(cvTitle);
+          if (contact) lines.push(contact);
+
+          const summaryText = cleanText(cv.summary);
+          if (sections.summary && summaryText) {
+            lines.push('', 'OZET', summaryText);
+          }
+
+          if (sections.skills && skillsList.value.length) {
+            lines.push('', 'YETENEKLER', skillsList.value.join(', '));
+          }
+
+          if (sections.experience && cv.experiences.length) {
+            lines.push('', 'DENEYIM');
+            cv.experiences.forEach((exp) => {
+              const title = [exp.role, exp.company].map(cleanText).filter(Boolean).join(' - ');
+              const date = [exp.start, exp.ongoing ? 'Devam' : exp.end].map(cleanText).filter(Boolean).join(' - ');
+              lines.push(title || 'Pozisyon');
+              const location = cleanText(exp.location);
+              if (location) lines.push(location);
+              if (date) lines.push(date);
+              bulletLines(exp.description).forEach(line => lines.push('- ' + line));
+              lines.push('');
+            });
+          }
+
+          if (sections.education && cv.education.length) {
+            lines.push('EGITIM');
+            cv.education.forEach((edu) => {
+              lines.push([edu.school, edu.program].map(cleanText).filter(Boolean).join(' - ') || 'Egitim');
+              const date = [edu.start, edu.ongoing ? 'Devam' : edu.end].map(cleanText).filter(Boolean).join(' - ');
+              if (date) lines.push(date);
+              const notes = cleanText(edu.notes);
+              if (notes) lines.push(notes);
+              lines.push('');
+            });
+          }
+
+          if (sections.projects && cv.projects.length) {
+            lines.push('PROJELER');
+            cv.projects.forEach((p) => {
+              lines.push([p.name, p.tech].map(cleanText).filter(Boolean).join(' - ') || 'Proje');
+              const projectLink = cleanText(p.link);
+              if (projectLink) lines.push(projectLink);
+              bulletLines(p.description).forEach(line => lines.push('- ' + line));
+              lines.push('');
+            });
+          }
+
+          if (sections.certifications && cv.certifications.length) {
+            lines.push('SERTIFIKALAR');
+            cv.certifications.forEach((c) => {
+              lines.push([c.name, c.issuer, c.year].map(cleanText).filter(Boolean).join(' - ') || 'Sertifika');
+              const certLink = cleanText(c.link);
+              if (certLink) lines.push(certLink);
+            });
+            lines.push('');
+          }
+
+          if (sections.languages && cv.languages.length) {
+            lines.push('DILLER');
+            cv.languages.forEach((l) => {
+              const langLine = [l.name, l.level].map(cleanText).filter(Boolean).join(' - ');
+              if (langLine) lines.push(langLine);
+            });
+            lines.push('');
+          }
+
+          return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+        };
+
+        const rtfEscape = (text) => {
+          return String(text || '')
+            .replace(/\\/g, '\\\\')
+            .replace(/\{/g, '\\{')
+            .replace(/\}/g, '\\}')
+            .replace(/\r?\n/g, '\\line ')
+            .split('')
+            .map((ch) => {
+              const code = ch.charCodeAt(0);
+              return code > 127 ? `\\u${code}?` : ch;
+            })
+            .join('');
+        };
+
+        const downloadAtsTxt = () => {
+          const txt = '\ufeff' + buildAtsText();
+          const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+          downloadBlob(blob, `${makeExportFileBase()}-ATS.txt`);
+          showProfilesMenu.value = false;
+        };
+
+        const downloadRtf = () => {
+          const text = buildAtsText();
+          const body = text
+            .split(/\r?\n/)
+            .map(line => (line ? `${rtfEscape(line)}\\par` : '\\par'))
+            .join('\n');
+          const rtf = `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\viewkind4\\uc1\\pard\\f0\\fs22\n${body}\n}`;
+          const blob = new Blob([rtf], { type: 'application/rtf' });
+          downloadBlob(blob, `${makeExportFileBase()}.rtf`);
+          showProfilesMenu.value = false;
+        };
+
+        const ensureDocxLoaded = () => {
+          if (window.docx && window.docx.Packer) {
+            return Promise.resolve(window.docx);
+          }
+
+          const sources = [
+            'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',
+            'https://unpkg.com/docx@8.5.0/build/index.umd.js'
+          ];
+
+          return new Promise((resolve, reject) => {
+            let idx = 0;
+
+            const tryNext = () => {
+              if (window.docx && window.docx.Packer) {
+                resolve(window.docx);
+                return;
+              }
+              if (idx >= sources.length) {
+                reject(new Error('DOCX kütüphanesi yüklenemedi.'));
+                return;
+              }
+
+              const script = document.createElement('script');
+              script.src = sources[idx++];
+              script.async = true;
+              script.onload = tryNext;
+              script.onerror = tryNext;
+              document.head.appendChild(script);
+            };
+
+            tryNext();
+          });
+        };
+
+        const downloadDocx = async () => {
+          try {
+            const docxLib = await ensureDocxLoaded();
+            const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docxLib;
+            const docChildren = [];
+
+            const pushHeading = (title) => {
+              docChildren.push(new Paragraph({
+                text: title,
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 240, after: 120 }
+              }));
+            };
+
+            const pushLine = (text, bold = false) => {
+              const normalized = cleanText(text);
+              if (!normalized) return;
+              docChildren.push(new Paragraph({
+                children: [new TextRun({ text: normalized, bold })],
+                spacing: { after: 80 }
+              }));
+            };
+
+            const pushBullets = (items) => {
+              items.forEach((item) => {
+                const normalized = cleanText(item);
+                if (!normalized) return;
+                docChildren.push(new Paragraph({
+                  text: normalized,
+                  bullet: { level: 0 },
+                  spacing: { after: 40 }
+                }));
+              });
+            };
+
+            const contact = [
+              cv.contact.email,
+              cv.contact.phone,
+              cv.contact.location,
+              cv.contact.linkedin,
+              cv.contact.github,
+              cv.contact.twitter,
+              cv.contact.website
+            ].map(cleanText).filter(Boolean).join(' | ');
+
+            docChildren.push(new Paragraph({
+              text: cleanText(fullName.value) || 'Ad Soyad',
+              heading: HeadingLevel.TITLE,
+              spacing: { after: 100 }
+            }));
+            pushLine(cleanText(cv.title));
+            pushLine(contact);
+
+            const docSummary = cleanText(cv.summary);
+            if (sections.summary && docSummary) {
+              pushHeading('Özet');
+              pushLine(docSummary);
+            }
+
+            if (sections.skills && skillsList.value.length) {
+              pushHeading('Yetenekler');
+              pushLine(skillsList.value.join(', '));
+            }
+
+            if (sections.experience && cv.experiences.length) {
+              pushHeading('Deneyim');
+              cv.experiences.forEach((exp) => {
+                const title = [exp.role, exp.company].map(cleanText).filter(Boolean).join(' - ');
+                const date = [exp.start, exp.ongoing ? 'Devam' : exp.end].map(cleanText).filter(Boolean).join(' - ');
+                pushLine(title || 'Pozisyon', true);
+                pushLine([exp.location, date].map(cleanText).filter(Boolean).join(' | '));
+                pushBullets(bulletLines(exp.description));
+              });
+            }
+
+            if (sections.education && cv.education.length) {
+              pushHeading('Eğitim');
+              cv.education.forEach((edu) => {
+                pushLine([edu.school, edu.program].map(cleanText).filter(Boolean).join(' - ') || 'Eğitim', true);
+                pushLine([edu.start, edu.ongoing ? 'Devam' : edu.end].map(cleanText).filter(Boolean).join(' - '));
+                pushLine(cleanText(edu.notes));
+              });
+            }
+
+            if (sections.projects && cv.projects.length) {
+              pushHeading('Projeler');
+              cv.projects.forEach((p) => {
+                pushLine([p.name, p.tech].map(cleanText).filter(Boolean).join(' - ') || 'Proje', true);
+                pushLine(cleanText(p.link));
+                pushBullets(bulletLines(p.description));
+              });
+            }
+
+            if (sections.certifications && cv.certifications.length) {
+              pushHeading('Sertifikalar');
+              cv.certifications.forEach((c) => {
+                pushLine([c.name, c.issuer, c.year].map(cleanText).filter(Boolean).join(' - '));
+                pushLine(cleanText(c.link));
+              });
+            }
+
+            if (sections.languages && cv.languages.length) {
+              pushHeading('Diller');
+              cv.languages.forEach((l) => pushLine([l.name, l.level].map(cleanText).filter(Boolean).join(' - ')));
+            }
+
+            const doc = new Document({
+              sections: [{ children: docChildren }]
+            });
+
+            const blob = await Packer.toBlob(doc);
+            downloadBlob(blob, `${makeExportFileBase()}.docx`);
+            showProfilesMenu.value = false;
+          } catch (err) {
+            alert('DOCX indirilemedi: ' + (err?.message || err));
+          }
+        };
+
+        const downloadPdf = async () => {
+          restoreAtsMode = atsMode.value;
+          if (forceAtsOnPrint.value) {
+            atsMode.value = true;
+          }
+
+          let tempWrapper = null;
+          try {
+            await Vue.nextTick();
+            await ensureHtml2PdfLoaded();
+
             var el = document.querySelector('.print-area .a4');
             if (!el) {
-              alert('CV bulunamadı');
-              if (restoreAtsMode !== null) {
-                atsMode.value = restoreAtsMode;
-                restoreAtsMode = null;
-              }
-              return;
+              throw new Error('CV bulunamadı');
             }
-            var opt = {
-              margin: 10,
-              filename: (fullName.value || 'CV') + '.pdf',
-              image: { type: 'jpeg', quality: 0.98 },
-              html2canvas: { scale: 2 },
-              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            html2pdf().set(opt).from(el).save().then(() => {
-              if (restoreAtsMode !== null) {
-                atsMode.value = restoreAtsMode;
-                restoreAtsMode = null;
+
+            const clone = el.cloneNode(true);
+            clone.querySelectorAll('.no-print, .placeholder').forEach(node => node.remove());
+            clone.classList.remove('paper-shadow');
+            const rect = el.getBoundingClientRect();
+            clone.style.width = `${Math.ceil(rect.width)}px`;
+            clone.style.minHeight = `${Math.ceil(rect.height)}px`;
+            clone.style.margin = '0';
+            clone.style.border = 'none';
+            clone.style.borderRadius = '0';
+            clone.style.boxShadow = 'none';
+            clone.style.boxSizing = 'border-box';
+            clone.style.transform = 'none';
+            clone.style.background = '#fff';
+            clone.style.overflow = 'hidden';
+
+            tempWrapper = document.createElement('div');
+            tempWrapper.style.position = 'fixed';
+            tempWrapper.style.left = '0';
+            tempWrapper.style.top = '0';
+            tempWrapper.style.width = `${Math.ceil(rect.width)}px`;
+            tempWrapper.style.background = '#fff';
+            tempWrapper.style.padding = '0';
+            tempWrapper.style.margin = '0';
+            tempWrapper.style.opacity = '0';
+            tempWrapper.style.pointerEvents = 'none';
+            tempWrapper.style.zIndex = '-1';
+            tempWrapper.appendChild(clone);
+            document.body.appendChild(tempWrapper);
+
+            // Fontlar ve layout oturduktan sonra render almak kaymayı azaltır.
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            if (document.fonts && document.fonts.ready) {
+              try {
+                await document.fonts.ready;
+              } catch (_) {
+                // Font API desteklenmiyorsa devam et.
               }
-            });
-          }, 50);
+            }
+
+            const html2canvasLib = window.html2canvas;
+            const jsPdfCtor = window.jspdf && window.jspdf.jsPDF;
+            const fileName = `${makeExportFileBase()}.pdf`;
+
+            if (html2canvasLib && jsPdfCtor) {
+              // html2canvas + jsPDF akışı, html2pdf'ye göre kayma ve dosya şişmesini azaltır.
+              const canvasScale = window.devicePixelRatio > 1.5 ? 1.35 : 1.2;
+              const canvas = await html2canvasLib(clone, {
+                scale: canvasScale,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                scrollX: 0,
+                scrollY: 0,
+                removeContainer: true,
+                windowWidth: Math.ceil(rect.width),
+                windowHeight: Math.ceil(rect.height)
+              });
+
+              const pdf = new jsPdfCtor({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+                compress: true,
+                putOnlyUsedFonts: true
+              });
+
+              const marginMm = clampPdfMargin(pdfMarginMm.value);
+              const requestedOffsetX = clampPdfOffsetX(pdfOffsetXMm.value);
+              const maxOffsetX = Math.max(0, marginMm - 1);
+              const effectiveOffsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, requestedOffsetX));
+              const leftMarginMm = marginMm + effectiveOffsetX;
+              const rightMarginMm = marginMm - effectiveOffsetX;
+              const pageWidthMm = pdf.internal.pageSize.getWidth();
+              const pageHeightMm = pdf.internal.pageSize.getHeight();
+              const contentWidthMm = pageWidthMm - leftMarginMm - rightMarginMm;
+              const contentHeightMm = pageHeightMm - marginMm * 2;
+              const pxPerMm = canvas.width / contentWidthMm;
+              const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
+
+              let offsetY = 0;
+              let pageIndex = 0;
+              while (offsetY < canvas.height) {
+                const sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = sliceHeight;
+                const ctx = pageCanvas.getContext('2d');
+                if (!ctx) {
+                  throw new Error('PDF çizim bağlamı oluşturulamadı.');
+                }
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                ctx.drawImage(canvas, 0, offsetY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+                const imgData = pageCanvas.toDataURL('image/jpeg', 0.86);
+                const imageHeightMm = sliceHeight / pxPerMm;
+                if (pageIndex > 0) {
+                  pdf.addPage();
+                }
+                pdf.addImage(imgData, 'JPEG', leftMarginMm, marginMm, contentWidthMm, imageHeightMm, undefined, 'FAST');
+
+                offsetY += sliceHeight;
+                pageIndex += 1;
+              }
+
+              pdf.save(fileName);
+            } else {
+              const marginMm = clampPdfMargin(pdfMarginMm.value);
+              const requestedOffsetX = clampPdfOffsetX(pdfOffsetXMm.value);
+              const maxOffsetX = Math.max(0, marginMm - 1);
+              const effectiveOffsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, requestedOffsetX));
+              const leftMarginMm = marginMm + effectiveOffsetX;
+              const rightMarginMm = marginMm - effectiveOffsetX;
+              const opt = {
+                margin: [marginMm, leftMarginMm, marginMm, rightMarginMm],
+                filename: fileName,
+                image: { type: 'jpeg', quality: 0.9 },
+                html2canvas: {
+                  scale: 1.2,
+                  useCORS: true,
+                  backgroundColor: '#ffffff',
+                  scrollX: 0,
+                  scrollY: 0
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
+              };
+              await html2pdf().set(opt).from(clone).save();
+            }
+          } catch (err) {
+            alert('PDF indirilemedi: ' + (err?.message || err));
+          } finally {
+            if (tempWrapper && tempWrapper.parentNode) {
+              tempWrapper.parentNode.removeChild(tempWrapper);
+            }
+            if (restoreAtsMode !== null) {
+              atsMode.value = restoreAtsMode;
+              restoreAtsMode = null;
+            }
+          }
         };
 
         const selectAllSections = (value) => {
@@ -1644,9 +2372,21 @@
             version: '1.0',
             cv: cv,
             settings: {
+              atsMode: atsMode.value,
+              forceAtsOnPrint: forceAtsOnPrint.value,
+              textScale: textScale.value,
+              pdfLayout: {
+                marginMm: clampPdfMargin(pdfMarginMm.value),
+                offsetXMm: clampPdfOffsetX(pdfOffsetXMm.value)
+              },
               selectedTheme: selectedTheme.value,
               selectedFont: selectedFont.value,
-              sections: { ...sections }
+              sections: { ...sections },
+              certLayout: {
+                enabled: certLayout.enabled,
+                left: [...certLayout.left],
+                right: [...certLayout.right]
+              }
             }
           };
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1678,10 +2418,23 @@
                 });
               }
               if (data.settings) {
+                if (typeof data.settings.atsMode === 'boolean') atsMode.value = data.settings.atsMode;
+                if (typeof data.settings.forceAtsOnPrint === 'boolean') forceAtsOnPrint.value = data.settings.forceAtsOnPrint;
+                if (typeof data.settings.textScale !== 'undefined') textScale.value = clampTextScale(data.settings.textScale);
+                if (data.settings.pdfLayout) {
+                  pdfMarginMm.value = clampPdfMargin(data.settings.pdfLayout.marginMm);
+                  pdfOffsetXMm.value = clampPdfOffsetX(data.settings.pdfLayout.offsetXMm);
+                }
                 if (data.settings.selectedTheme) selectedTheme.value = data.settings.selectedTheme;
                 if (data.settings.selectedFont) selectedFont.value = data.settings.selectedFont;
                 if (data.settings.sections) Object.assign(sections, data.settings.sections);
+                if (data.settings.certLayout) {
+                  certLayout.enabled = Boolean(data.settings.certLayout.enabled);
+                  certLayout.left = Array.isArray(data.settings.certLayout.left) ? [...data.settings.certLayout.left] : [];
+                  certLayout.right = Array.isArray(data.settings.certLayout.right) ? [...data.settings.certLayout.right] : [];
+                }
               }
+              syncCertificationLayout();
               alert('✅ CV başarıyla yüklendi!');
             } catch (err) {
               alert('❌ JSON dosyası okunamadı: ' + err.message);
@@ -1705,9 +2458,21 @@
             date: new Date().toISOString(),
             cv: JSON.parse(JSON.stringify(cv)),
             settings: {
+              atsMode: atsMode.value,
+              forceAtsOnPrint: forceAtsOnPrint.value,
+              textScale: textScale.value,
+              pdfLayout: {
+                marginMm: clampPdfMargin(pdfMarginMm.value),
+                offsetXMm: clampPdfOffsetX(pdfOffsetXMm.value)
+              },
               selectedTheme: selectedTheme.value,
               selectedFont: selectedFont.value,
-              sections: { ...sections }
+              sections: { ...sections },
+              certLayout: {
+                enabled: certLayout.enabled,
+                left: [...certLayout.left],
+                right: [...certLayout.right]
+              }
             }
           };
           
@@ -1742,10 +2507,23 @@
           
           // Ayarları yükle
           if (profile.settings) {
+            if (typeof profile.settings.atsMode === 'boolean') atsMode.value = profile.settings.atsMode;
+            if (typeof profile.settings.forceAtsOnPrint === 'boolean') forceAtsOnPrint.value = profile.settings.forceAtsOnPrint;
+            if (typeof profile.settings.textScale !== 'undefined') textScale.value = clampTextScale(profile.settings.textScale);
+            if (profile.settings.pdfLayout) {
+              pdfMarginMm.value = clampPdfMargin(profile.settings.pdfLayout.marginMm);
+              pdfOffsetXMm.value = clampPdfOffsetX(profile.settings.pdfLayout.offsetXMm);
+            }
             if (profile.settings.selectedTheme) selectedTheme.value = profile.settings.selectedTheme;
             if (profile.settings.selectedFont) selectedFont.value = profile.settings.selectedFont;
             if (profile.settings.sections) Object.assign(sections, profile.settings.sections);
+            if (profile.settings.certLayout) {
+              certLayout.enabled = Boolean(profile.settings.certLayout.enabled);
+              certLayout.left = Array.isArray(profile.settings.certLayout.left) ? [...profile.settings.certLayout.left] : [];
+              certLayout.right = Array.isArray(profile.settings.certLayout.right) ? [...profile.settings.certLayout.right] : [];
+            }
           }
+          syncCertificationLayout();
           
           showProfilesMenu.value = false;
           alert(`✅ "${profile.name}" profili yüklendi!`);
@@ -1822,6 +2600,13 @@
           selectedFont.value = 'inter';
           atsMode.value = true;
           forceAtsOnPrint.value = true;
+          textScale.value = 100;
+          pdfMarginMm.value = 8;
+          pdfOffsetXMm.value = 0;
+          certLayout.enabled = false;
+          certLayout.left = [];
+          certLayout.right = [];
+          draggedCertificationId.value = '';
           
           // Skill input'ı temizle
           newSkill.value = '';
@@ -1874,6 +2659,13 @@
           selectedFont.value = 'inter';
           atsMode.value = true;
           forceAtsOnPrint.value = true;
+          textScale.value = 100;
+          pdfMarginMm.value = 8;
+          pdfOffsetXMm.value = 0;
+          certLayout.enabled = false;
+          certLayout.left = [];
+          certLayout.right = [];
+          draggedCertificationId.value = '';
           
           // Skill input'ı temizle
           newSkill.value = '';
@@ -1895,7 +2687,23 @@
         );
 
         Vue.watch(
-          () => ({ atsMode: atsMode.value, forceAtsOnPrint: forceAtsOnPrint.value, sections: { ...sections }, selectedTheme: selectedTheme.value, selectedFont: selectedFont.value }),
+          () => ({
+            atsMode: atsMode.value,
+            forceAtsOnPrint: forceAtsOnPrint.value,
+            textScale: textScale.value,
+            pdfLayout: {
+              marginMm: clampPdfMargin(pdfMarginMm.value),
+              offsetXMm: clampPdfOffsetX(pdfOffsetXMm.value)
+            },
+            sections: { ...sections },
+            selectedTheme: selectedTheme.value,
+            selectedFont: selectedFont.value,
+            certLayout: {
+              enabled: certLayout.enabled,
+              left: [...certLayout.left],
+              right: [...certLayout.right]
+            }
+          }),
           (newVal) => {
             try {
               localStorage.setItem('cv-settings', JSON.stringify(newVal));
@@ -1910,15 +2718,22 @@
           cv,
           atsMode,
           forceAtsOnPrint,
+          textScale,
+          pdfMarginMm,
+          pdfOffsetXMm,
           sections,
           newSkill,
           selectedTheme,
           selectedFont,
           showProfilesMenu,
+          profilesMenuRef,
           newProfileName,
           savedProfiles,
+          certLayout,
+          certColumnItems,
           themeClass,
           fontClass,
+          previewStyle,
           cvStats,
           fullName,
           hasAnyContact,
@@ -1935,6 +2750,12 @@
           removeProject,
           addCertification,
           removeCertification,
+          resetCertificationLayout,
+          startCertificationDrag,
+          endCertificationDrag,
+          moveCertification,
+          dropCertification,
+          resetPdfLayout,
           addLanguage,
           removeLanguage,
           addAward,
@@ -1952,6 +2773,9 @@
           handlePhotoUpload,
           exportJSON,
           importJSON,
+          downloadAtsTxt,
+          downloadRtf,
+          downloadDocx,
           loadTemplate,
           deleteCV,
           saveProfile,

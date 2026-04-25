@@ -1,3 +1,4 @@
+<img width="1480" height="919" alt="image" src="https://github.com/user-attachments/assets/23a8ef5f-4c46-4abe-9786-6660fc010166" />
 # Ücretsiz CV Oluşturucu (Tek Dosya)
 
 Canlı demo: https://windlok.github.io/ucretsiz-cv-olusturucu/

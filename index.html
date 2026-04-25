@@ -118,6 +118,10 @@
         min-height: auto !important;
         box-shadow: none !important;
       }
+
+      /* Ekran için verilen scroll kısıtları yazdırmayı kırmasın */
+      main { overflow: visible !important; }
+      .scroll-pane { overflow: visible !important; max-height: none !important; height: auto !important; }
     }
 
     /* Küçük ekranlarda A4 taşmasın (sadece ekranda) */
@@ -131,7 +135,7 @@
 </head>
 
 <body class="bg-slate-100 text-slate-900">
-  <div id="app" class="min-h-screen">
+  <div id="app" class="min-h-screen lg:h-screen lg:overflow-hidden lg:flex lg:flex-col">
     <!-- Top Bar -->
     <header class="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
       <div class="mx-auto max-w-[1400px] px-4 py-3 flex items-center justify-between gap-4">
@@ -233,6 +237,21 @@
             title="Yazdırma penceresini açar">
             Yazdır (PDF)
           </button>
+
+          <select
+            v-model="pdfQualityPreset"
+            class="text-xs rounded-lg border border-slate-200 bg-white px-2 py-2 focus:outline-none focus:ring-2 focus:ring-slate-900/20"
+            title="PDF kalitesi / dosya boyutu dengesi (yaklaşık)"
+          >
+            <option value="low">Düşük (daima &lt; 2MB)</option>
+            <option value="medium">Orta (2MB altına otomatik)</option>
+            <option value="high">Yüksek (orijinal – limit yok)</option>
+          </select>
+
+          <div v-if="lastPdfSizeLabel" class="text-xs text-slate-500 whitespace-nowrap" title="Son indirilen PDF boyutu">
+            {{ lastPdfSizeLabel }}
+          </div>
+
           <button
             @click="downloadPdf"
             class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
@@ -244,10 +263,10 @@
     </header>
 
     <!-- Split Screen -->
-    <main class="mx-auto max-w-[1400px] px-4 py-6">
-      <div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
+    <main class="mx-auto max-w-[1400px] px-4 py-6 lg:flex-1 lg:overflow-hidden lg:min-h-0">
+      <div class="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:h-full lg:min-h-0">
         <!-- LEFT PANEL (40%) -->
-        <section class="no-print lg:col-span-4">
+        <section class="no-print lg:col-span-4 lg:h-full lg:min-h-0 lg:overflow-y-auto scroll-pane">
           <div class="rounded-2xl border border-slate-200 bg-white p-5">
             <div class="flex items-center justify-between">
               <h2 class="text-base font-semibold">Bilgiler</h2>
@@ -972,9 +991,9 @@
         </section>
 
         <!-- RIGHT PANEL (60%) -->
-        <section class="lg:col-span-6">
-          <div class="print-area flex items-start justify-center lg:justify-end">
-            <article class="a4 paper-shadow rounded-2xl bg-white border border-slate-200 p-10" :class="[themeClass, fontClass]" :style="previewStyle">
+        <section class="lg:col-span-6 lg:h-full lg:min-h-0 lg:overflow-y-auto scroll-pane">
+          <div class="print-area flex items-start justify-center lg:justify-end lg:pb-10">
+            <article class="a4 paper-shadow rounded-2xl bg-white border border-slate-200" :class="[themeClass, fontClass]" :style="previewStyle">
               <!-- Header -->
               <header>
                 <!-- ATS-friendly header (single column, simple separators) -->
@@ -1400,6 +1419,8 @@
         const textScale = Vue.ref(clampTextScale(savedSettings?.textScale ?? 100));
         const pdfMarginMm = Vue.ref(clampPdfMargin(savedSettings?.pdfLayout?.marginMm ?? 8));
         const pdfOffsetXMm = Vue.ref(clampPdfOffsetX(savedSettings?.pdfLayout?.offsetXMm ?? 0));
+        const pdfQualityPreset = Vue.ref(savedSettings?.pdfQualityPreset || 'medium');
+        const lastPdfSizeBytes = Vue.ref(null);
         const sections = Vue.reactive(savedSettings?.sections || {
           summary: true,
           skills: true,
@@ -1526,7 +1547,26 @@
         });
 
         const previewStyle = Vue.computed(() => {
-          return { '--cv-text-scale': String(textScale.value / 100) };
+          const marginMm = clampPdfMargin(pdfMarginMm.value);
+          const requestedOffsetX = clampPdfOffsetX(pdfOffsetXMm.value);
+          const maxOffsetX = Math.max(0, marginMm - 1);
+          const effectiveOffsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, requestedOffsetX));
+          const leftMarginMm = marginMm + effectiveOffsetX;
+          const rightMarginMm = marginMm - effectiveOffsetX;
+
+          return { 
+            '--cv-text-scale': String(textScale.value / 100),
+            'padding-top': `${marginMm}mm`,
+            'padding-bottom': `${marginMm}mm`,
+            'padding-left': `${leftMarginMm}mm`,
+            'padding-right': `${rightMarginMm}mm`,
+          };
+        });
+
+        const lastPdfSizeLabel = Vue.computed(() => {
+          if (!lastPdfSizeBytes.value) return '';
+          const mb = lastPdfSizeBytes.value / (1024 * 1024);
+          return `Son PDF: ${mb.toFixed(mb >= 1 ? 2 : 1)}MB`;
         });
 
         const cvStats = Vue.computed(() => {
@@ -2013,21 +2053,33 @@
         };
 
         const ensureDocxLoaded = () => {
-          if (window.docx && window.docx.Packer) {
-            return Promise.resolve(window.docx);
+          const getDocxLib = () => {
+            const candidate = window.docx;
+            if (!candidate) return null;
+            if (candidate.Packer) return candidate;
+            if (candidate.default && candidate.default.Packer) return candidate.default;
+            if (candidate.docx && candidate.docx.Packer) return candidate.docx;
+            return null;
+          };
+
+          const existing = getDocxLib();
+          if (existing) {
+            return Promise.resolve(existing);
           }
 
           const sources = [
             'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',
-            'https://unpkg.com/docx@8.5.0/build/index.umd.js'
+            'https://unpkg.com/docx@8.5.0/build/index.umd.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js'
           ];
 
           return new Promise((resolve, reject) => {
             let idx = 0;
 
             const tryNext = () => {
-              if (window.docx && window.docx.Packer) {
-                resolve(window.docx);
+              const lib = getDocxLib();
+              if (lib) {
+                resolve(lib);
                 return;
               }
               if (idx >= sources.length) {
@@ -2161,7 +2213,15 @@
             downloadBlob(blob, `${makeExportFileBase()}.docx`);
             showProfilesMenu.value = false;
           } catch (err) {
-            alert('DOCX indirilemedi: ' + (err?.message || err));
+            console.error('DOCX export error:', err);
+            const msg = (err?.message || String(err || '')).toLowerCase();
+            // DOCX kütüphanesi yüklenemiyorsa kullanıcıyı boş bırakmayalım.
+            if (msg.includes('yüklenemedi') || msg.includes('load') || msg.includes('network')) {
+              alert('DOCX indirilemedi (internet / CDN erişimi gerekli). Alternatif olarak RTF indiriliyor.');
+              try { downloadRtf(); } catch (_) {}
+            } else {
+              alert('DOCX indirilemedi: ' + (err?.message || err));
+            }
           }
         };
 
@@ -2226,9 +2286,8 @@
 
             if (html2canvasLib && jsPdfCtor) {
               // html2canvas + jsPDF akışı, html2pdf'ye göre kayma ve dosya şişmesini azaltır.
-              const canvasScale = window.devicePixelRatio > 1.5 ? 1.35 : 1.2;
               const canvas = await html2canvasLib(clone, {
-                scale: canvasScale,
+                scale: 1.0,
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 scrollX: 0,
@@ -2238,67 +2297,126 @@
                 windowHeight: Math.ceil(rect.height)
               });
 
-              const pdf = new jsPdfCtor({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4',
-                compress: true,
-                putOnlyUsedFonts: true
-              });
+              const TARGET_BYTES = 2 * 1024 * 1024; // 2MB hedef
+              const preset = (pdfQualityPreset.value || 'medium');
+              const presetVariants = {
+                low: [
+                  { downscale: 0.75, quality: 0.45 },
+                  { downscale: 0.7, quality: 0.4 },
+                  { downscale: 0.6, quality: 0.35 },
+                  { downscale: 0.5, quality: 0.3 },
+                  { downscale: 0.45, quality: 0.28 },
+                  { downscale: 0.4, quality: 0.25 },
+                  { downscale: 0.35, quality: 0.22 },
+                  { downscale: 0.3, quality: 0.2 }
+                ],
+                medium: [
+                  { downscale: 1.0, quality: 0.7 },
+                  { downscale: 1.0, quality: 0.65 },
+                  { downscale: 0.9, quality: 0.6 },
+                  { downscale: 0.85, quality: 0.55 },
+                  { downscale: 0.8, quality: 0.5 },
+                  { downscale: 0.75, quality: 0.45 },
+                  { downscale: 0.7, quality: 0.4 },
+                  { downscale: 0.6, quality: 0.35 },
+                  { downscale: 0.5, quality: 0.3 }
+                ]
+              };
+              const variants = preset === 'high'
+                ? [{ downscale: 1.0, quality: 0.92 }]
+                : (presetVariants[preset] || presetVariants.medium);
 
-              const marginMm = clampPdfMargin(pdfMarginMm.value);
-              const requestedOffsetX = clampPdfOffsetX(pdfOffsetXMm.value);
-              const maxOffsetX = Math.max(0, marginMm - 1);
-              const effectiveOffsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, requestedOffsetX));
-              const leftMarginMm = marginMm + effectiveOffsetX;
-              const rightMarginMm = marginMm - effectiveOffsetX;
-              const pageWidthMm = pdf.internal.pageSize.getWidth();
-              const pageHeightMm = pdf.internal.pageSize.getHeight();
-              const contentWidthMm = pageWidthMm - leftMarginMm - rightMarginMm;
-              const contentHeightMm = pageHeightMm - marginMm * 2;
-              const pxPerMm = canvas.width / contentWidthMm;
-              const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
+              const buildPdfBlob = async ({ downscale, quality }) => {
+                const pdf = new jsPdfCtor({
+                  orientation: 'portrait',
+                  unit: 'mm',
+                  format: 'a4',
+                  compress: true,
+                  putOnlyUsedFonts: true
+                });
 
-              let offsetY = 0;
-              let pageIndex = 0;
-              while (offsetY < canvas.height) {
-                const sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
-                const pageCanvas = document.createElement('canvas');
-                pageCanvas.width = canvas.width;
-                pageCanvas.height = sliceHeight;
-                const ctx = pageCanvas.getContext('2d');
-                if (!ctx) {
-                  throw new Error('PDF çizim bağlamı oluşturulamadı.');
+                const pageWidthMm = pdf.internal.pageSize.getWidth();
+                const pageHeightMm = pdf.internal.pageSize.getHeight();
+                const pxPerMmOriginal = canvas.width / pageWidthMm;
+                const pageHeightPx = Math.floor(pageHeightMm * pxPerMmOriginal);
+
+                let offsetY = 0;
+                let pageIndex = 0;
+
+                while (offsetY < canvas.height) {
+                  const sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
+
+                  const pageCanvas = document.createElement('canvas');
+                  pageCanvas.width = Math.max(1, Math.round(canvas.width * downscale));
+                  pageCanvas.height = Math.max(1, Math.round(sliceHeight * downscale));
+                  const ctx = pageCanvas.getContext('2d');
+                  if (!ctx) {
+                    throw new Error('PDF çizim bağlamı oluşturulamadı.');
+                  }
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                  ctx.drawImage(
+                    canvas,
+                    0,
+                    offsetY,
+                    canvas.width,
+                    sliceHeight,
+                    0,
+                    0,
+                    pageCanvas.width,
+                    pageCanvas.height
+                  );
+
+                  const imgData = pageCanvas.toDataURL('image/jpeg', quality);
+                  const pxPerMm = pageCanvas.width / pageWidthMm;
+                  const imageHeightMm = pageCanvas.height / pxPerMm;
+
+                  if (pageIndex > 0) {
+                    pdf.addPage();
+                  }
+                  pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, imageHeightMm, undefined, 'FAST');
+
+                  offsetY += sliceHeight;
+                  pageIndex += 1;
                 }
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-                ctx.drawImage(canvas, 0, offsetY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
 
-                const imgData = pageCanvas.toDataURL('image/jpeg', 0.86);
-                const imageHeightMm = sliceHeight / pxPerMm;
-                if (pageIndex > 0) {
-                  pdf.addPage();
+                // Boyutu kontrol edebilmek için save() yerine blob üret.
+                return pdf.output('blob');
+              };
+
+              let chosenBlob = null;
+              if (preset === 'high') {
+                // Yüksek: dokunulmamış/orijinal kalite (2MB sınırı yok).
+                chosenBlob = await buildPdfBlob(variants[0]);
+              } else {
+                // Düşük/Orta: 2MB altına düşene kadar kaliteyi kademeli azalt.
+                for (const variant of variants) {
+                  const blob = await buildPdfBlob(variant);
+                  chosenBlob = blob;
+                  if (blob && blob.size <= TARGET_BYTES) {
+                    break;
+                  }
                 }
-                pdf.addImage(imgData, 'JPEG', leftMarginMm, marginMm, contentWidthMm, imageHeightMm, undefined, 'FAST');
-
-                offsetY += sliceHeight;
-                pageIndex += 1;
               }
 
-              pdf.save(fileName);
+              if (!chosenBlob) {
+                throw new Error('PDF üretilemedi.');
+              }
+
+              if (preset !== 'high' && chosenBlob.size > TARGET_BYTES) {
+                console.warn('PDF 2MB altına indirilemedi. Son boyut (bytes):', chosenBlob.size);
+                alert('PDF 2MB altına indirilemedi. İçerik çok uzun veya görsel çok büyük olabilir. Fotoğrafı kaldırmayı veya metni kısaltmayı deneyin.');
+              }
+              lastPdfSizeBytes.value = chosenBlob.size;
+              downloadBlob(chosenBlob, fileName);
             } else {
-              const marginMm = clampPdfMargin(pdfMarginMm.value);
-              const requestedOffsetX = clampPdfOffsetX(pdfOffsetXMm.value);
-              const maxOffsetX = Math.max(0, marginMm - 1);
-              const effectiveOffsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, requestedOffsetX));
-              const leftMarginMm = marginMm + effectiveOffsetX;
-              const rightMarginMm = marginMm - effectiveOffsetX;
+              // html2pdf kullanan fallback için de marginleri sıfırlayalım, çünkü div içinde zaten padding var.
               const opt = {
-                margin: [marginMm, leftMarginMm, marginMm, rightMarginMm],
+                margin: [0, 0, 0, 0],
                 filename: fileName,
-                image: { type: 'jpeg', quality: 0.9 },
+                image: { type: 'jpeg', quality: 0.65 },
                 html2canvas: {
-                  scale: 1.2,
+                  scale: 1.0,
                   useCORS: true,
                   backgroundColor: '#ffffff',
                   scrollX: 0,
@@ -2360,11 +2478,51 @@
             event.target.value = '';
             return;
           }
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            cv.photo = e.target.result;
-          };
-          reader.readAsDataURL(file);
+
+          const loadImage = (file) => new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+              URL.revokeObjectURL(url);
+              resolve(img);
+            };
+            img.onerror = () => {
+              URL.revokeObjectURL(url);
+              reject(new Error('Resim okunamadı.'));
+            };
+            img.src = url;
+          });
+
+          (async () => {
+            try {
+              const img = await loadImage(file);
+              const maxDim = 720; // PDF boyutunu düşürmek için güvenli sınır
+              const ratio = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+              const w = Math.max(1, Math.round((img.width || 1) * ratio));
+              const h = Math.max(1, Math.round((img.height || 1) * ratio));
+
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) throw new Error('Canvas oluşturulamadı.');
+              // PNG gibi alfa kanallı görsellerde PDF'de siyah arka plan oluşmaması için beyaz zemin bas.
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, w, h);
+              ctx.drawImage(img, 0, 0, w, h);
+
+              const quality = 0.78;
+              cv.photo = canvas.toDataURL('image/jpeg', quality);
+            } catch (err) {
+              console.error('Photo compress error:', err);
+              // Sıkıştırma başarısızsa eski davranışa dön.
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                cv.photo = e.target.result;
+              };
+              reader.readAsDataURL(file);
+            }
+          })();
         };
 
         const exportJSON = () => {
@@ -2375,6 +2533,7 @@
               atsMode: atsMode.value,
               forceAtsOnPrint: forceAtsOnPrint.value,
               textScale: textScale.value,
+              pdfQualityPreset: pdfQualityPreset.value,
               pdfLayout: {
                 marginMm: clampPdfMargin(pdfMarginMm.value),
                 offsetXMm: clampPdfOffsetX(pdfOffsetXMm.value)
@@ -2603,6 +2762,8 @@
           textScale.value = 100;
           pdfMarginMm.value = 8;
           pdfOffsetXMm.value = 0;
+          pdfQualityPreset.value = 'medium';
+          lastPdfSizeBytes.value = null;
           certLayout.enabled = false;
           certLayout.left = [];
           certLayout.right = [];
@@ -2691,6 +2852,7 @@
             atsMode: atsMode.value,
             forceAtsOnPrint: forceAtsOnPrint.value,
             textScale: textScale.value,
+            pdfQualityPreset: pdfQualityPreset.value,
             pdfLayout: {
               marginMm: clampPdfMargin(pdfMarginMm.value),
               offsetXMm: clampPdfOffsetX(pdfOffsetXMm.value)
@@ -2721,6 +2883,8 @@
           textScale,
           pdfMarginMm,
           pdfOffsetXMm,
+          pdfQualityPreset,
+          lastPdfSizeLabel,
           sections,
           newSkill,
           selectedTheme,

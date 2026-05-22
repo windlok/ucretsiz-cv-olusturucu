@@ -13,20 +13,9 @@
 
   <!-- html2pdf.js (PDF direkt indirme için) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Poppins:wght@400;500;600;700&family=Lato:wght@400;700&family=Open+Sans:wght@400;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-
   <style>
     /* A4 boyutu ve yazdırma ayarları */
     :root{
-      --a4-w: 210mm;
-      --a4-h: 297mm;
-      --cv-text-scale: 1;
-      
-      /* Tema renkleri */
       --theme-primary: 15 23 42; /* slate-900 */
       --theme-secondary: 51 65 85; /* slate-700 */
       --theme-accent: 100 116 139; /* slate-500 */
@@ -61,6 +50,11 @@
       width: var(--a4-w);
       min-height: var(--a4-h);
       --cv-text-scale: 1;
+    }
+
+    .pdf-keep-together {
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     /* On izleme metinlerini toplu olcekle */
@@ -138,8 +132,8 @@
   <div id="app" class="min-h-screen lg:h-screen lg:overflow-hidden lg:flex lg:flex-col">
     <!-- Top Bar -->
     <header class="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
-      <div class="mx-auto max-w-[1400px] px-4 py-3 flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
+      <div class="mx-auto max-w-[1400px] px-4 py-3 flex flex-wrap items-start justify-between gap-4">
+        <div class="flex flex-wrap items-center justify-end gap-2 lg:gap-3 max-w-full">
           <div class="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-semibold">CV</div>
           <div>
             <div class="text-sm font-semibold leading-5">CV Oluşturucu</div>
@@ -243,10 +237,18 @@
             class="text-xs rounded-lg border border-slate-200 bg-white px-2 py-2 focus:outline-none focus:ring-2 focus:ring-slate-900/20"
             title="PDF kalitesi / dosya boyutu dengesi (yaklaşık)"
           >
-            <option value="low">Düşük (daima &lt; 2MB)</option>
-            <option value="medium">Orta (2MB altına otomatik)</option>
-            <option value="high">Yüksek (orijinal – limit yok)</option>
+            <option value="low">Düşük (~0.2-0.35 MB)</option>
+            <option value="medium">Orta (~0.35-0.7 MB)</option>
+            <option value="high">Yüksek (~0.7 MB+)</option>
           </select>
+
+          <div class="hidden xl:block text-xs text-slate-500 whitespace-nowrap" title="Seçili PDF kalitesi">
+            Seçim: {{ pdfQualityLabel }}
+          </div>
+
+          <div class="hidden xl:block text-[11px] text-slate-400 whitespace-nowrap max-w-[220px] leading-4" title="Seçimin etkisi">
+            {{ pdfQualityHint }}
+          </div>
 
           <div v-if="lastPdfSizeLabel" class="text-xs text-slate-500 whitespace-nowrap" title="Son indirilen PDF boyutu">
             {{ lastPdfSizeLabel }}
@@ -1049,7 +1051,7 @@
               </header>
 
               <!-- Summary -->
-              <section class="mt-5" v-if="sections.summary">
+              <section class="mt-5 pdf-keep-together" v-if="sections.summary">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Özet</h2>
                 <p class="mt-2 text-sm text-slate-800 leading-relaxed whitespace-pre-line">
                   {{ cv.summary || 'Kısa bir profesyonel özet yazın. Odak: güçlü yönleriniz, kullandığınız teknolojiler ve elde ettiğiniz sonuçlar.' }}
@@ -1057,7 +1059,7 @@
               </section>
 
               <!-- Skills -->
-              <section class="mt-5" v-if="sections.skills && skillsList.length">
+              <section class="mt-5 pdf-keep-together" v-if="sections.skills && skillsList.length">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Yetenekler</h2>
                 <p class="mt-2 text-sm text-slate-800">
                   {{ skillsText }}
@@ -1069,7 +1071,7 @@
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Deneyim</h2>
 
                 <div class="mt-3 space-y-4">
-                  <div v-for="exp in cv.experiences" :key="exp.id">
+                  <div v-for="exp in cv.experiences" :key="exp.id" class="pdf-keep-together">
                     <div class="flex items-baseline justify-between gap-4">
                       <div class="min-w-0">
                         <div class="text-sm font-semibold text-slate-900">
@@ -1104,7 +1106,7 @@
               <section class="mt-6" v-if="sections.education">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Eğitim</h2>
                 <div class="mt-3 space-y-4">
-                  <div v-for="edu in cv.education" :key="edu.id">
+                  <div v-for="edu in cv.education" :key="edu.id" class="pdf-keep-together">
                     <div class="flex items-baseline justify-between gap-4">
                       <div class="min-w-0">
                         <div class="text-sm font-semibold text-slate-900">
@@ -1131,7 +1133,7 @@
               <section class="mt-6" v-if="sections.projects && cv.projects.length">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Projeler</h2>
                 <div class="mt-3 space-y-4">
-                  <div v-for="p in cv.projects" :key="p.id">
+                  <div v-for="p in cv.projects" :key="p.id" class="pdf-keep-together">
                     <div class="text-sm font-semibold text-slate-900">
                       {{ p.name || 'Proje Adı' }}
                       <span class="font-normal text-slate-700" v-if="p.tech"> — {{ p.tech }}</span>
@@ -1148,7 +1150,7 @@
               <!-- Certifications -->
               <section class="mt-6" v-if="sections.certifications && cv.certifications.length">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Sertifikalar</h2>
-                <div v-if="certLayout.enabled" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div v-if="certLayout.enabled" class="cert-grid mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="rounded-lg border border-dashed border-slate-300 p-3" @dragover.prevent @drop="dropCertification($event, 'left')">
                     <div class="no-print text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sol Sütun</div>
                     <div class="mt-2 min-h-10 space-y-2">
@@ -1160,7 +1162,7 @@
                         @dragend="endCertificationDrag"
                         @dragover.prevent
                         @drop.stop="dropCertification($event, 'left', c.id)"
-                        class="cursor-move rounded-lg border border-slate-200 bg-white p-2 text-sm text-slate-800">
+                        class="pdf-keep-together cert-item cursor-move rounded-lg border border-slate-200 bg-white p-2 text-sm text-slate-800">
                         <div class="no-print mb-1 flex justify-end">
                           <button @click.stop="moveCertification(c.id, 'right')" class="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Sağa al</button>
                         </div>
@@ -1186,7 +1188,7 @@
                         @dragend="endCertificationDrag"
                         @dragover.prevent
                         @drop.stop="dropCertification($event, 'right', c.id)"
-                        class="cursor-move rounded-lg border border-slate-200 bg-white p-2 text-sm text-slate-800">
+                        class="pdf-keep-together cert-item cursor-move rounded-lg border border-slate-200 bg-white p-2 text-sm text-slate-800">
                         <div class="no-print mb-1 flex justify-end">
                           <button @click.stop="moveCertification(c.id, 'left')" class="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Sola al</button>
                         </div>
@@ -1202,7 +1204,7 @@
                   </div>
                 </div>
                 <div v-else class="mt-3 space-y-3">
-                  <div v-for="c in cv.certifications" :key="c.id" class="text-sm text-slate-800">
+                  <div v-for="c in cv.certifications" :key="c.id" class="pdf-keep-together cert-item text-sm text-slate-800">
                     <div class="font-semibold text-slate-900">{{ c.name || 'Sertifika' }}</div>
                     <div class="text-xs text-slate-600">
                       <span v-if="c.issuer">{{ c.issuer }}</span>
@@ -1217,7 +1219,7 @@
               <section class="mt-6" v-if="sections.languages && cv.languages.length">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Diller</h2>
                 <div class="mt-3 space-y-2">
-                  <div v-for="l in cv.languages" :key="l.id" class="flex items-baseline justify-between gap-4 text-sm">
+                  <div v-for="l in cv.languages" :key="l.id" class="pdf-keep-together flex items-baseline justify-between gap-4 text-sm">
                     <div class="font-semibold text-slate-900">{{ l.name || 'Dil' }}</div>
                     <div class="text-slate-700" v-if="l.level">{{ l.level }}</div>
                     <div class="text-slate-400" v-else>—</div>
@@ -1235,7 +1237,7 @@
               <section class="mt-6" v-if="sections.awards && cv.awards.length">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Ödüller & Başarılar</h2>
                 <div class="mt-3 space-y-3">
-                  <div v-for="a in cv.awards" :key="a.id">
+                  <div v-for="a in cv.awards" :key="a.id" class="pdf-keep-together">
                     <div class="flex items-baseline justify-between gap-4">
                       <div class="text-sm font-semibold text-slate-900">{{ a.title || 'Ödül' }}</div>
                       <div class="text-xs text-slate-600">{{ a.year }}</div>
@@ -1250,7 +1252,7 @@
               <section class="mt-6" v-if="sections.volunteer && cv.volunteer.length">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Gönüllü Çalışmalar</h2>
                 <div class="mt-3 space-y-4">
-                  <div v-for="v in cv.volunteer" :key="v.id">
+                  <div v-for="v in cv.volunteer" :key="v.id" class="pdf-keep-together">
                     <div class="flex items-baseline justify-between gap-4">
                       <div class="min-w-0">
                         <div class="text-sm font-semibold text-slate-900">{{ v.role || 'Rol' }}<span class="font-normal text-slate-600" v-if="v.organization"> • {{ v.organization }}</span></div>
@@ -1268,7 +1270,7 @@
               <section class="mt-6" v-if="sections.references && cv.references.length">
                 <h2 class="text-xs font-semibold tracking-wider theme-color-primary uppercase">Referanslar</h2>
                 <div class="mt-3 space-y-3">
-                  <div v-for="r in cv.references" :key="r.id" class="text-sm">
+                  <div v-for="r in cv.references" :key="r.id" class="pdf-keep-together text-sm">
                     <div class="font-semibold text-slate-900">{{ r.name || 'Ad Soyad' }}</div>
                     <div class="text-xs text-slate-700" v-if="r.position || r.company">
                       <span v-if="r.position">{{ r.position }}</span>
@@ -1913,6 +1915,14 @@
             atsMode.value = true;
           }
           await Vue.nextTick();
+          if (document.fonts && document.fonts.ready) {
+            try {
+              await document.fonts.ready;
+            } catch (_) {
+              // Font API desteklenmiyorsa devam et.
+            }
+          }
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           window.print();
         };
 
@@ -2012,6 +2022,40 @@
             cv.languages.forEach((l) => {
               const langLine = [l.name, l.level].map(cleanText).filter(Boolean).join(' - ');
               if (langLine) lines.push(langLine);
+            });
+            lines.push('');
+          }
+
+          if (sections.hobbies && cleanText(cv.hobbies)) {
+            lines.push('HOBILER', cleanText(cv.hobbies), '');
+          }
+
+          if (sections.awards && cv.awards.length) {
+            lines.push('ODULLER');
+            cv.awards.forEach((award) => {
+              lines.push([award.title, award.issuer, award.year].map(cleanText).filter(Boolean).join(' - ') || 'Odul');
+              const awardDescription = cleanText(award.description);
+              if (awardDescription) lines.push(awardDescription);
+              lines.push('');
+            });
+          }
+
+          if (sections.volunteer && cv.volunteer.length) {
+            lines.push('GONULLU CALISMALAR');
+            cv.volunteer.forEach((item) => {
+              lines.push([item.organization, item.role].map(cleanText).filter(Boolean).join(' - ') || 'Gonullu');
+              const volunteerDates = [item.start, item.ongoing ? 'Devam' : item.end].map(cleanText).filter(Boolean).join(' - ');
+              if (volunteerDates) lines.push(volunteerDates);
+              const volunteerDescription = cleanText(item.description);
+              if (volunteerDescription) lines.push(volunteerDescription);
+              lines.push('');
+            });
+          }
+
+          if (sections.references && cv.references.length) {
+            lines.push('REFERANSLAR');
+            cv.references.forEach((ref) => {
+              lines.push([ref.name, ref.position, ref.company, ref.email, ref.phone].map(cleanText).filter(Boolean).join(' - ') || 'Referans');
             });
             lines.push('');
           }
@@ -2205,6 +2249,36 @@
               cv.languages.forEach((l) => pushLine([l.name, l.level].map(cleanText).filter(Boolean).join(' - ')));
             }
 
+            if (sections.hobbies && cleanText(cv.hobbies)) {
+              pushHeading('Hobiler');
+              pushLine(cleanText(cv.hobbies));
+            }
+
+            if (sections.awards && cv.awards.length) {
+              pushHeading('Ödüller');
+              cv.awards.forEach((award) => {
+                pushLine([award.title, award.issuer, award.year].map(cleanText).filter(Boolean).join(' - ') || 'Ödül', true);
+                pushLine(cleanText(award.description));
+              });
+            }
+
+            if (sections.volunteer && cv.volunteer.length) {
+              pushHeading('Gönüllü Çalışmalar');
+              cv.volunteer.forEach((item) => {
+                pushLine([item.organization, item.role].map(cleanText).filter(Boolean).join(' - ') || 'Gönüllü', true);
+                pushLine([item.start, item.ongoing ? 'Devam' : item.end].map(cleanText).filter(Boolean).join(' - '));
+                pushLine(cleanText(item.description));
+              });
+            }
+
+            if (sections.references && cv.references.length) {
+              pushHeading('Referanslar');
+              cv.references.forEach((ref) => {
+                pushLine([ref.name, ref.position, ref.company].map(cleanText).filter(Boolean).join(' - ') || 'Referans', true);
+                pushLine([ref.email, ref.phone].map(cleanText).filter(Boolean).join(' | '));
+              });
+            }
+
             const doc = new Document({
               sections: [{ children: docChildren }]
             });
@@ -2243,6 +2317,31 @@
 
             const clone = el.cloneNode(true);
             clone.querySelectorAll('.no-print, .placeholder').forEach(node => node.remove());
+            const certGrid = clone.querySelector('.cert-grid');
+            if (certGrid) {
+              certGrid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+              certGrid.style.alignItems = 'start';
+              certGrid.style.gap = '4px';
+              certGrid.style.marginTop = '6px';
+            }
+            clone.querySelectorAll('.cert-item').forEach((item) => {
+              item.style.breakInside = 'avoid';
+              item.style.pageBreakInside = 'avoid';
+              item.style.padding = '3px 6px';
+              item.style.lineHeight = '1.05';
+              item.style.minHeight = '0';
+              item.querySelectorAll('.font-semibold').forEach((el) => {
+                el.style.fontSize = '12px';
+                el.style.lineHeight = '1.1';
+              });
+              item.querySelectorAll('.text-xs').forEach((el) => {
+                el.style.fontSize = '9px';
+                el.style.lineHeight = '1.05';
+              });
+            });
+            clone.querySelectorAll('.cert-grid > div').forEach((column) => {
+              column.style.padding = '4px';
+            });
             clone.classList.remove('paper-shadow');
             const rect = el.getBoundingClientRect();
             clone.style.width = `${Math.ceil(rect.width)}px`;
@@ -2280,151 +2379,43 @@
               }
             }
 
-            const html2canvasLib = window.html2canvas;
-            const jsPdfCtor = window.jspdf && window.jspdf.jsPDF;
             const fileName = `${makeExportFileBase()}.pdf`;
+            const preset = (pdfQualityPreset.value || 'medium');
+            const presetOptions = {
+              low: { scale: 0.78, quality: 0.42 },
+              medium: { scale: 1.0, quality: 0.68 },
+              high: { scale: 1.28, quality: 0.95 }
+            };
+            const quality = presetOptions[preset] || presetOptions.medium;
 
-            if (html2canvasLib && jsPdfCtor) {
-              // html2canvas + jsPDF akışı, html2pdf'ye göre kayma ve dosya şişmesini azaltır.
-              const canvas = await html2canvasLib(clone, {
-                scale: 1.0,
+            const opt = {
+              margin: [0, 0, 0, 0],
+              filename: fileName,
+              image: { type: 'jpeg', quality: quality.quality },
+              pagebreak: {
+                mode: ['css', 'legacy'],
+                avoid: '.pdf-keep-together'
+              },
+              html2canvas: {
+                scale: quality.scale,
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 scrollX: 0,
-                scrollY: 0,
-                removeContainer: true,
-                windowWidth: Math.ceil(rect.width),
-                windowHeight: Math.ceil(rect.height)
-              });
+                scrollY: 0
+              },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
+            };
 
-              const TARGET_BYTES = 2 * 1024 * 1024; // 2MB hedef
-              const preset = (pdfQualityPreset.value || 'medium');
-              const presetVariants = {
-                low: [
-                  { downscale: 0.75, quality: 0.45 },
-                  { downscale: 0.7, quality: 0.4 },
-                  { downscale: 0.6, quality: 0.35 },
-                  { downscale: 0.5, quality: 0.3 },
-                  { downscale: 0.45, quality: 0.28 },
-                  { downscale: 0.4, quality: 0.25 },
-                  { downscale: 0.35, quality: 0.22 },
-                  { downscale: 0.3, quality: 0.2 }
-                ],
-                medium: [
-                  { downscale: 1.0, quality: 0.7 },
-                  { downscale: 1.0, quality: 0.65 },
-                  { downscale: 0.9, quality: 0.6 },
-                  { downscale: 0.85, quality: 0.55 },
-                  { downscale: 0.8, quality: 0.5 },
-                  { downscale: 0.75, quality: 0.45 },
-                  { downscale: 0.7, quality: 0.4 },
-                  { downscale: 0.6, quality: 0.35 },
-                  { downscale: 0.5, quality: 0.3 }
-                ]
-              };
-              const variants = preset === 'high'
-                ? [{ downscale: 1.0, quality: 0.92 }]
-                : (presetVariants[preset] || presetVariants.medium);
-
-              const buildPdfBlob = async ({ downscale, quality }) => {
-                const pdf = new jsPdfCtor({
-                  orientation: 'portrait',
-                  unit: 'mm',
-                  format: 'a4',
-                  compress: true,
-                  putOnlyUsedFonts: true
-                });
-
-                const pageWidthMm = pdf.internal.pageSize.getWidth();
-                const pageHeightMm = pdf.internal.pageSize.getHeight();
-                const pxPerMmOriginal = canvas.width / pageWidthMm;
-                const pageHeightPx = Math.floor(pageHeightMm * pxPerMmOriginal);
-
-                let offsetY = 0;
-                let pageIndex = 0;
-
-                while (offsetY < canvas.height) {
-                  const sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
-
-                  const pageCanvas = document.createElement('canvas');
-                  pageCanvas.width = Math.max(1, Math.round(canvas.width * downscale));
-                  pageCanvas.height = Math.max(1, Math.round(sliceHeight * downscale));
-                  const ctx = pageCanvas.getContext('2d');
-                  if (!ctx) {
-                    throw new Error('PDF çizim bağlamı oluşturulamadı.');
-                  }
-                  ctx.fillStyle = '#ffffff';
-                  ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-                  ctx.drawImage(
-                    canvas,
-                    0,
-                    offsetY,
-                    canvas.width,
-                    sliceHeight,
-                    0,
-                    0,
-                    pageCanvas.width,
-                    pageCanvas.height
-                  );
-
-                  const imgData = pageCanvas.toDataURL('image/jpeg', quality);
-                  const pxPerMm = pageCanvas.width / pageWidthMm;
-                  const imageHeightMm = pageCanvas.height / pxPerMm;
-
-                  if (pageIndex > 0) {
-                    pdf.addPage();
-                  }
-                  pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, imageHeightMm, undefined, 'FAST');
-
-                  offsetY += sliceHeight;
-                  pageIndex += 1;
-                }
-
-                // Boyutu kontrol edebilmek için save() yerine blob üret.
-                return pdf.output('blob');
-              };
-
-              let chosenBlob = null;
-              if (preset === 'high') {
-                // Yüksek: dokunulmamış/orijinal kalite (2MB sınırı yok).
-                chosenBlob = await buildPdfBlob(variants[0]);
-              } else {
-                // Düşük/Orta: 2MB altına düşene kadar kaliteyi kademeli azalt.
-                for (const variant of variants) {
-                  const blob = await buildPdfBlob(variant);
-                  chosenBlob = blob;
-                  if (blob && blob.size <= TARGET_BYTES) {
-                    break;
-                  }
-                }
-              }
-
-              if (!chosenBlob) {
+            const worker = html2pdf().set(opt).from(clone);
+            if (typeof worker.outputPdf === 'function') {
+              const blob = await worker.outputPdf('blob');
+              if (!blob) {
                 throw new Error('PDF üretilemedi.');
               }
-
-              if (preset !== 'high' && chosenBlob.size > TARGET_BYTES) {
-                console.warn('PDF 2MB altına indirilemedi. Son boyut (bytes):', chosenBlob.size);
-                alert('PDF 2MB altına indirilemedi. İçerik çok uzun veya görsel çok büyük olabilir. Fotoğrafı kaldırmayı veya metni kısaltmayı deneyin.');
-              }
-              lastPdfSizeBytes.value = chosenBlob.size;
-              downloadBlob(chosenBlob, fileName);
+              lastPdfSizeBytes.value = blob.size;
+              downloadBlob(blob, fileName);
             } else {
-              // html2pdf kullanan fallback için de marginleri sıfırlayalım, çünkü div içinde zaten padding var.
-              const opt = {
-                margin: [0, 0, 0, 0],
-                filename: fileName,
-                image: { type: 'jpeg', quality: 0.65 },
-                html2canvas: {
-                  scale: 1.0,
-                  useCORS: true,
-                  backgroundColor: '#ffffff',
-                  scrollX: 0,
-                  scrollY: 0
-                },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
-              };
-              await html2pdf().set(opt).from(clone).save();
+              await worker.save();
             }
           } catch (err) {
             alert('PDF indirilemedi: ' + (err?.message || err));

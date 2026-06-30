@@ -1571,6 +1571,20 @@
           return `Son PDF: ${mb.toFixed(mb >= 1 ? 2 : 1)}MB`;
         });
 
+        const pdfQualityLabel = Vue.computed(() => {
+          const labels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
+          return labels[pdfQualityPreset.value] || 'Orta';
+        });
+
+        const pdfQualityHint = Vue.computed(() => {
+          const hints = {
+            low: 'Düşük kalite, küçük dosya boyutu — hızlı gönderim için ideal.',
+            medium: 'Orta kalite, dengeli dosya boyutu — genel kullanım.',
+            high: 'Yüksek kalite, büyük dosya — baskı / resmi başvuru.'
+          };
+          return hints[pdfQualityPreset.value] || hints.medium;
+        });
+
         const cvStats = Vue.computed(() => {
           // Kelime sayısı
           const text = [
@@ -1707,6 +1721,7 @@
             role: '',
             start: '',
             end: '',
+            ongoing: false,
             location: '',
             description: ''
           });
@@ -1723,6 +1738,7 @@
             program: '',
             start: '',
             end: '',
+            ongoing: false,
             notes: ''
           });
         };
@@ -2456,7 +2472,7 @@
         };
 
         const removeSkill = (index) => {
-          const current = skillsList.value;
+          const current = [...skillsList.value];
           current.splice(index, 1);
           cv.skills = current.join(', ');
         };
@@ -2876,6 +2892,8 @@
           pdfOffsetXMm,
           pdfQualityPreset,
           lastPdfSizeLabel,
+          pdfQualityLabel,
+          pdfQualityHint,
           sections,
           newSkill,
           selectedTheme,
